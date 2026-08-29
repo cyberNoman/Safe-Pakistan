@@ -1,0 +1,1 @@
+`npx expo start` (or `yarn android`/`yarn ios`/`yarn web`) boots the mobile app from this directory; the backend must be started independently as a separate Node process pointing at the deployed URL shown in README.md.

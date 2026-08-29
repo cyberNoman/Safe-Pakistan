@@ -1,0 +1,4 @@
+- Environment variables are read at module top-level via `process.env.*` and assigned to constants before use.
+- External API calls are wrapped in try/catch blocks that log the failing layer name and fall through to the next strategy (fine-tuned model → qwen-max → local rules).
+- LLM responses are normalized into a uniform shape with fields `verdict`, `score`, `confidence`, `type`, `redFlags`, and trilingual `explanation_*` strings, regardless of which model produced them.
+- Scam detection combines an LLM path with a deterministic regex rule engine as a last-resort fallback.

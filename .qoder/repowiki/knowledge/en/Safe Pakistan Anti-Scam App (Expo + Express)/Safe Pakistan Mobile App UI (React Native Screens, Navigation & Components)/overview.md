@@ -1,0 +1,1 @@
+React Native frontend for the Safe Pakistan anti-scam app, providing themed screens, reusable UI components, and a React Navigation v6 stack/tab layout.

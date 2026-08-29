@@ -1,0 +1,1 @@
+React Native with Expo; `@react-navigation/native` v6 (native stack + bottom tabs) for routing, `expo-linear-gradient` for hero cards, `@expo/vector-icons` (Ionicons) for icons, `react-native-svg` + `react-native-reanimated` for the animated ThreatRing, and `react-native-safe-area-context` for safe insets.

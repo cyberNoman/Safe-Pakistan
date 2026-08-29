@@ -1,0 +1,19 @@
+schema_version: 1
+module_path: ""
+title: Safe Pakistan Anti-Scam App (Expo + Express)
+scope:
+    - README.md
+    - AGENTS.md
+    - DESIGN_RULES.md
+    - START-HERE.md
+    - Safe Pakistan.html
+    - .gitignore
+    - App.js
+    - app.json
+    - babel.config.js
+    - eas.json
+    - jsconfig.json
+    - package.json
+source_files: []
+depends_on: []
+related_to: []

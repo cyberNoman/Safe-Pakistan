@@ -1,0 +1,1 @@
+Express.js API that analyzes SMS/voice transcripts for Pakistani scams (JazzCash, Easypaisa, BISP 8171) by calling Qwen LLMs with a fallback to on-device regex rules.
