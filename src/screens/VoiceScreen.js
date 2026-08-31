@@ -19,8 +19,8 @@ import Animated, {
   withTiming, withDelay, Easing,
 } from 'react-native-reanimated';
 
-import { COLORS, FONTS, RADIUS, gradients } from '@/theme/tokens';
-import { typo } from '@/theme/typography';
+import { COLORS, FONTS, RADIUS, SIZE, SPACE, gradients } from '@/theme/tokens';
+import { typo, enText } from '@/theme/typography';
 
 const LANGS = [
   { code:'en', label:'EN' },
@@ -49,11 +49,11 @@ export default function VoiceScreen({ navigation }) {
 
       <View style={styles.headerRow}>
         <Pressable onPress={() => navigation?.goBack?.()} style={styles.iconBtn}>
-          <Ionicons name="close" size={20} color="#fff" />
+          <Ionicons name="close" size={20} color={COLORS.white} />
         </Pressable>
         <View style={{ alignItems: 'center' }}>
-          <Text style={{ fontFamily: FONTS.enExtra, fontSize: 15, color: '#fff' }}>Voice Guardian</Text>
-          <Text style={[typo.labelUr, { color: 'rgba(255,255,255,0.7)', marginTop: 2 }]}>آواز محافظ</Text>
+          <Text style={enText(SIZE.base, FONTS.enExtra, COLORS.white)}>Voice Guardian</Text>
+          <Text style={[typo.labelUr, { color: COLORS.white70, marginTop: 2 }]}>آواز محافظ</Text>
         </View>
         <View style={{ width: 40 }} />
       </View>
@@ -64,13 +64,12 @@ export default function VoiceScreen({ navigation }) {
           <Pressable key={l.code} onPress={() => setLang(l.code)} style={[
             styles.langChip,
             lang === l.code
-              ? { backgroundColor: '#fff' }
-              : { backgroundColor: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.15)', borderWidth: 1 }
+              ? { backgroundColor: COLORS.white }
+              : { backgroundColor: COLORS.white08, borderColor: COLORS.white15, borderWidth: 1 }
           ]}>
-            <Text style={{
-              fontFamily: FONTS.enBold, fontSize: 12,
-              color: lang === l.code ? COLORS.primary : '#fff',
-            }}>{l.label}</Text>
+            <Text style={enText(SIZE.xs, FONTS.enBold, lang === l.code ? COLORS.primary : COLORS.white)}>
+              {l.label}
+            </Text>
           </Pressable>
         ))}
       </View>
@@ -79,14 +78,14 @@ export default function VoiceScreen({ navigation }) {
       <View style={styles.center}>
         <MicRipples active={state === 'listening'} />
 
-        <View style={{ alignItems: 'center', marginTop: 36 }}>
+        <View style={{ alignItems: 'center', marginTop: SPACE.xl }}>
           <Text style={styles.stateLabel}>
             {state === 'listening' && '● LISTENING'}
             {state === 'processing' && '… PROCESSING'}
             {state === 'idle' && '○ TAP TO SPEAK'}
             {state === 'done' && '✓ DONE'}
           </Text>
-          <Text style={{ fontFamily: FONTS.enExtra, fontSize: 22, color: '#fff', marginTop: 8, textAlign: 'center' }}>
+          <Text style={enText(SIZE.xl, FONTS.enExtra, COLORS.white, { marginTop: SPACE.sm, textAlign: 'center' })}>
             {state === 'listening' && 'Bolein, main sun raha hoon'}
             {state === 'processing' && 'Samajh raha hoon...'}
             {state === 'idle' && 'Tap karke shuru karein'}
@@ -103,10 +102,9 @@ export default function VoiceScreen({ navigation }) {
 
       {/* Voice hints */}
       <View style={styles.hints}>
-        <Text style={{
-          fontFamily: FONTS.enBold, fontSize: 11, color: 'rgba(255,255,255,0.7)',
-          letterSpacing: 1.2, textAlign: 'center', marginBottom: 10,
-        }}>
+        <Text style={enText(SIZE.xs, FONTS.enBold, COLORS.white70, {
+          letterSpacing: 1.2, textAlign: 'center', marginBottom: SPACE.sm,
+        })}>
           YEH BOL KAR DEKHEIN
         </Text>
         {[
@@ -115,7 +113,7 @@ export default function VoiceScreen({ navigation }) {
           '"BISP 8171 ka asli message kaisa hota hai?"',
         ].map((h, i) => (
           <View key={i} style={styles.hintChip}>
-            <Text style={{ fontFamily: FONTS.enMedium, fontSize: 13, color: '#fff' }}>{h}</Text>
+            <Text style={enText(SIZE.sm, FONTS.enMedium, COLORS.white)}>{h}</Text>
           </View>
         ))}
       </View>
@@ -132,7 +130,7 @@ function MicRipples({ active }) {
         colors={gradients.hero.colors} start={gradients.hero.start} end={gradients.hero.end}
         style={styles.micCore}
       >
-        <Ionicons name="mic" size={56} color="#fff" />
+        <Ionicons name="mic" size={56} color={COLORS.white} />
       </LinearGradient>
     </View>
   );
@@ -182,7 +180,7 @@ function Bar({ h, i }) {
   }));
   return (
     <Animated.View style={[
-      { width: 5, borderRadius: 4, backgroundColor: i % 2 === 0 ? COLORS.accent : '#fff' },
+      { width: 5, borderRadius: RADIUS.sm / 2, backgroundColor: i % 2 === 0 ? COLORS.accent : COLORS.white },
       animatedStyle,
     ]} />
   );
@@ -192,20 +190,20 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bgDark },
   headerRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingTop: 4,
+    paddingHorizontal: SPACE.lg, paddingTop: SPACE.xs,
   },
   iconBtn: {
-    width: 40, height: 40, borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+    width: 40, height: 40, borderRadius: RADIUS.icon,
+    backgroundColor: COLORS.white08,
+    borderWidth: 1, borderColor: COLORS.white15,
     alignItems: 'center', justifyContent: 'center',
   },
   langRow: {
     flexDirection: 'row', justifyContent: 'center',
-    gap: 6, marginTop: 18,
+    gap: 6, marginTop: SPACE.md,
   },
-  langChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 99 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 28 },
+  langChip: { paddingHorizontal: SPACE.sm, paddingVertical: SPACE.xs, borderRadius: RADIUS.chip },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: SPACE.xl },
   micWrap: { width: 240, height: 240, alignItems: 'center', justifyContent: 'center' },
   ripple: {
     position: 'absolute', width: 240, height: 240, borderRadius: 120,
@@ -214,18 +212,18 @@ const styles = StyleSheet.create({
   micCore: {
     width: 130, height: 130, borderRadius: 65,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)',
+    borderWidth: 2, borderColor: COLORS.white25,
     shadowColor: COLORS.primary, shadowOffset:{width:0,height:0},
     shadowOpacity: 0.6, shadowRadius: 40, elevation: 12,
   },
-  stateLabel: { fontFamily: FONTS.enExtra, fontSize: 11, color: COLORS.accent, letterSpacing: 1.5 },
+  stateLabel: { fontFamily: FONTS.enExtra, fontSize: SIZE.xs, color: COLORS.accent, letterSpacing: 1.5 },
   waveform: {
     flexDirection: 'row', alignItems: 'center', gap: 5, height: 52,
   },
-  hints: { paddingHorizontal: 20, paddingBottom: 24, gap: 8 },
+  hints: { paddingHorizontal: SPACE.lg, paddingBottom: SPACE.lg, gap: SPACE.sm },
   hintChip: {
-    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 99,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm, borderRadius: RADIUS.chip,
+    backgroundColor: COLORS.white08,
+    borderWidth: 1, borderColor: COLORS.white12,
   },
 });

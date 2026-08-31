@@ -11,8 +11,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
-import { COLORS, FONTS, RADIUS, SHADOW, gradients } from '@/theme/tokens';
-import { typo } from '@/theme/typography';
+import { COLORS, FONTS, RADIUS, SIZE, SPACE, SHADOW, gradients } from '@/theme/tokens';
+import { typo, enText } from '@/theme/typography';
 import ThreatRing from '@/components/ThreatRing';
 import { SectionHeader } from '@/components/Cards';
 
@@ -24,7 +24,7 @@ const METRICS = [
 ];
 
 const BARS = [
-  { l:'Keyword baseline', ur:'پرانا طریقہ',      v: 68, flat: '#94A3B8' },
+  { l:'Keyword baseline', ur:'پرانا طریقہ',      v: 68, flat: COLORS.textMuted },
   { l:'Hifazat AI',            ur:'حفاظت اے آئی',        v: 94, flat: null },
 ];
 
@@ -32,17 +32,17 @@ export default function ModelPerfScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle="dark-content" />
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ padding: SPACE.lg, paddingBottom: SPACE.xxl }} showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACE.sm }}>
           <Pressable onPress={() => navigation?.goBack?.()} style={[styles.iconBtn, SHADOW.soft]}>
             <Ionicons name="chevron-back" size={18} color={COLORS.text} />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: FONTS.enExtra, fontSize: 11, color: COLORS.textMuted, letterSpacing: 1 }}>
+            <Text style={enText(SIZE.xs, FONTS.enExtra, COLORS.textMuted, { letterSpacing: 1 })}>
               SETTINGS
             </Text>
-            <Text style={{ fontFamily: FONTS.enExtra, fontSize: 20, color: COLORS.text, marginTop: 1 }}>
+            <Text style={enText(SIZE.lg, FONTS.enExtra, COLORS.text, { marginTop: 1 })}>
               Model Performance
             </Text>
           </View>
@@ -54,16 +54,16 @@ export default function ModelPerfScreen({ navigation }) {
           style={[styles.hero, SHADOW.elevated]}
         >
           <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: FONTS.enExtra, fontSize: 11, color: 'rgba(255,255,255,0.72)', letterSpacing: 1.2 }}>
+            <Text style={enText(SIZE.xs, FONTS.enExtra, COLORS.white70, { letterSpacing: 1.2 })}>
               LIVE MODEL · v2.4
             </Text>
             <Text style={styles.heroNum}>94.2%</Text>
-            <Text style={{ fontFamily: FONTS.enSemibold, fontSize: 14, color: 'rgba(255,255,255,0.8)', marginTop: 6 }}>
+            <Text style={enText(SIZE.sm, FONTS.enSemibold, COLORS.white80, { marginTop: 6 })}>
               Overall accuracy
             </Text>
-            <Text style={[typo.labelUr, { color: 'rgba(255,255,255,0.8)', marginTop: 3 }]}>مجموعی درستگی</Text>
+            <Text style={[typo.labelUr, { color: COLORS.white80, marginTop: 3 }]}>مجموعی درستگی</Text>
           </View>
-          <ThreatRing score={94} size={88} color="#00C896" label="ACCURACY" />
+          <ThreatRing score={94} size={88} color={COLORS.accent} label="ACCURACY" />
         </LinearGradient>
 
         {/* Metric grid */}
@@ -73,35 +73,33 @@ export default function ModelPerfScreen({ navigation }) {
               <View style={[styles.metricBar, { backgroundColor: m.c }]} />
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
                 <Text style={styles.metricNum}>{m.v}</Text>
-                <Text style={{ fontFamily: FONTS.enBold, fontSize: 14, color: COLORS.textMuted }}>{m.unit}</Text>
+                <Text style={enText(SIZE.sm, FONTS.enBold, COLORS.textMuted)}>{m.unit}</Text>
               </View>
-              <Text style={{ fontFamily: FONTS.enBold, fontSize: 13, color: COLORS.text, marginTop: 8 }}>{m.l}</Text>
+              <Text style={enText(SIZE.sm, FONTS.enBold, COLORS.text, { marginTop: SPACE.sm })}>{m.l}</Text>
               <Text style={[typo.labelUr, { marginTop: 2 }]}>{m.ur}</Text>
             </View>
           ))}
         </View>
 
         {/* Comparison */}
-        <View style={{ marginTop: 20 }}>
+        <View style={{ marginTop: SPACE.lg }}>
           <SectionHeader title="Keyword vs AI" urduTitle="موازنہ" />
           <View style={[styles.card, SHADOW.card]}>
             <View style={styles.barChart}>
               {BARS.map(b => (
-                <View key={b.l} style={{ alignItems: 'center', gap: 8, width: 88 }}>
-                  <Text style={{
-                    fontFamily: FONTS.enBlack, fontSize: 20,
-                    color: b.flat ? COLORS.textMuted : COLORS.primary,
+                <View key={b.l} style={{ alignItems: 'center', gap: SPACE.sm, width: 88 }}>
+                  <Text style={enText(SIZE.lg, FONTS.enBlack, b.flat ? COLORS.textMuted : COLORS.primary, {
                     fontVariant: ['tabular-nums'],
-                  }}>{b.v}%</Text>
+                  })}>{b.v}%</Text>
                   {b.flat ? (
-                    <View style={{ width: 60, height: (b.v/100)*112, borderTopLeftRadius: 8, borderTopRightRadius: 8, backgroundColor: b.flat }} />
+                    <View style={{ width: 60, height: (b.v/100)*112, borderTopLeftRadius: RADIUS.sm, borderTopRightRadius: RADIUS.sm, backgroundColor: b.flat }} />
                   ) : (
                     <LinearGradient
                       colors={gradients.hero.colors} start={{x:0,y:1}} end={{x:0,y:0}}
-                      style={{ width: 60, height: (b.v/100)*112, borderTopLeftRadius: 8, borderTopRightRadius: 8 }}
+                      style={{ width: 60, height: (b.v/100)*112, borderTopLeftRadius: RADIUS.sm, borderTopRightRadius: RADIUS.sm }}
                     />
                   )}
-                  <Text style={{ fontFamily: FONTS.enBold, fontSize: 13, color: COLORS.text, textAlign: 'center', lineHeight: 17 }}>
+                  <Text style={enText(SIZE.sm, FONTS.enBold, COLORS.text, { textAlign: 'center', lineHeight: 17 })}>
                     {b.l}
                   </Text>
                   <Text style={[typo.labelUr, { textAlign: 'center' }]}>{b.ur}</Text>
@@ -109,7 +107,7 @@ export default function ModelPerfScreen({ navigation }) {
               ))}
             </View>
             <View style={styles.callout}>
-              <Text style={{ fontFamily: FONTS.enSemibold, fontSize: 15, color: COLORS.text, lineHeight: 22 }}>
+              <Text style={enText(SIZE.base, FONTS.enSemibold, COLORS.text, { lineHeight: 22 })}>
                 AI system 26% zyada scam pakadta hai.
               </Text>
             </View>
@@ -131,39 +129,38 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface, alignItems: 'center', justifyContent: 'center',
   },
   hero: {
-    flexDirection: 'row', alignItems: 'center', gap: 18,
-    borderRadius: RADIUS.card, padding: 18, marginTop: 16, overflow: 'hidden',
+    flexDirection: 'row', alignItems: 'center', gap: SPACE.md,
+    borderRadius: RADIUS.card, padding: SPACE.md, marginTop: SPACE.md, overflow: 'hidden',
   },
   heroNum: {
-    fontFamily: FONTS.enBlack, fontSize: 40, color: '#fff',
-    marginTop: 6, lineHeight: 42, fontVariant: ['tabular-nums'], letterSpacing: -1,
+    ...typo.scoreEn, color: COLORS.white,
+    marginTop: 6, lineHeight: 42, letterSpacing: -1,
   },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACE.sm, marginTop: SPACE.md },
   metric: {
     width: '47.5%', flexGrow: 1,
-    backgroundColor: COLORS.surface, borderRadius: 16, padding: 14,
+    backgroundColor: COLORS.surface, borderRadius: RADIUS.btn, padding: SPACE.md,
     borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden',
   },
   metricBar: { position: 'absolute', top: 0, left: 0, width: 3, height: 30 },
   metricNum: {
-    fontFamily: FONTS.enBlack, fontSize: 26, color: COLORS.text,
+    fontFamily: FONTS.enBlack, fontSize: SIZE.xl, color: COLORS.text,
     fontVariant: ['tabular-nums'], lineHeight: 28,
   },
   card: {
-    backgroundColor: COLORS.surface, borderRadius: RADIUS.card, padding: 16,
+    backgroundColor: COLORS.surface, borderRadius: RADIUS.card, padding: SPACE.md,
     borderWidth: 1, borderColor: COLORS.border,
   },
   barChart: {
     flexDirection: 'row', alignItems: 'flex-end',
-    justifyContent: 'center', gap: 40, height: 200,
+    justifyContent: 'center', gap: SPACE.xl, height: 200,
   },
   callout: {
-    marginTop: 14, padding: 12, borderRadius: 12,
+    marginTop: SPACE.md, padding: SPACE.sm, borderRadius: RADIUS.icon,
     backgroundColor: COLORS.surface2,
     borderLeftWidth: 3, borderLeftColor: COLORS.primary,
   },
-  footnote: {
-    marginTop: 14, fontFamily: FONTS.enMedium, fontSize: 12,
-    color: COLORS.textMuted, lineHeight: 18,
-  },
+  footnote: enText(SIZE.xs, FONTS.enMedium, COLORS.textMuted, {
+    marginTop: SPACE.md, lineHeight: 18,
+  }),
 });

@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Safe Pakistan — System Design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0C0E1A; --surface:#141628; --surface2:#1A1D35; --border:#1F2440;
+  --text:#F1F5F9; --muted:#94A3B8; --blue:#1B4FD8; --green:#00C896;
+  --red:#E63946; --orange:#F4A261;
+  --mono:ui-monospace,'Cascadia Code',Consolas,monospace;
+  --urdu:'Noto Nastaliq Urdu',serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;background:var(--bg);overflow:hidden;font-family:Inter,sans-serif;color:var(--text)}
+
+#progress{position:fixed;top:0;left:0;height:3px;background:var(--blue);width:0;z-index:50;transition:width .35s ease}
+#counter{position:fixed;bottom:18px;right:26px;z-index:50;font-family:var(--mono);font-size:13px;color:var(--muted);letter-spacing:.08em}
+#hint{position:fixed;bottom:18px;left:26px;z-index:50;font-size:11px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;opacity:.7}
+
+#viewport{position:fixed;inset:0}
+#stage{position:absolute;left:50%;top:50%;width:1280px;height:720px;transform-origin:center center}
+
+.slide{position:absolute;inset:0;display:none;flex-direction:column;padding:52px 64px 56px;background:var(--bg)}
+.slide.active{display:flex}
+
+.kicker{font-size:12px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:var(--blue);margin-bottom:12px}
+.slide h2{font-size:34px;font-weight:900;letter-spacing:-.01em;margin-bottom:22px}
+.slide .lede{font-size:15px;color:var(--muted);max-width:980px;line-height:1.55;margin-bottom:20px}
+.mono{font-family:var(--mono)}
+.blue{color:var(--blue)} .green{color:var(--green)} .red{color:var(--red)} .orange{color:var(--orange)} .muted{color:var(--muted)}
+.grow{flex:1;min-height:0;display:flex;flex-direction:column}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px}
+.card.s2{background:var(--surface2)}
+
+.chip{display:inline-block;font-family:var(--mono);font-size:12px;font-weight:700;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);letter-spacing:.04em}
+.chip.b{color:var(--blue);border-color:var(--blue)}
+.chip.g{color:var(--green);border-color:var(--green)}
+.chip.r{color:var(--red);border-color:var(--red)}
+.chip.o{color:var(--orange);border-color:var(--orange)}
+
+table{border-collapse:collapse;width:100%}
+th{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);text-align:left;padding:10px 14px;border-bottom:1px solid var(--border)}
+td{font-size:14.5px;padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+
+pre.code{font-family:var(--mono);font-size:15.5px;line-height:1.62;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px 28px;color:var(--text);overflow:hidden}
+pre.code .k{color:var(--blue)} pre.code .s{color:var(--green)} pre.code .n{color:var(--orange)}
+
+ul.bullets{list-style:none;display:flex;flex-direction:column;gap:12px}
+ul.bullets li{position:relative;padding-left:22px;font-size:15.5px;line-height:1.55;color:var(--text)}
+ul.bullets li::before{content:"";position:absolute;left:0;top:.55em;width:8px;height:8px;border-radius:2px;background:var(--blue)}
+ul.bullets li.g::before{background:var(--green)}
+ul.bullets li.o::before{background:var(--orange)}
+ul.bullets li.r::before{background:var(--red)}
+ul.bullets b{font-weight:700}
+ul.bullets .mono{font-size:13.5px;color:var(--muted)}
+
+.callout{border-left:3px solid var(--blue);background:var(--surface);border-radius:0 10px 10px 0;padding:14px 18px;font-size:14.5px;line-height:1.5;color:var(--muted)}
+.callout.red{border-color:var(--red)} .callout.green{border-color:var(--green)} .callout.orange{border-color:var(--orange)}
+.callout b{color:var(--text)}
+
+.cols{display:flex;gap:18px}
+.cols>*{flex:1;min-width:0}
+
+/* title slide */
+#s1{justify-content:center;align-items:flex-start}
+#s1 h1{font-size:72px;font-weight:900;letter-spacing:-.03em;line-height:1.05;margin:18px 0 26px}
+#s1 h1 .accent{color:var(--blue)}
+#s1 .sub{font-size:20px;color:var(--muted);letter-spacing:.02em}
+#s1 .rule{width:120px;height:4px;background:var(--blue);border-radius:2px;margin-top:44px}
+#s1 .meta{margin-top:26px;font-family:var(--mono);font-size:13px;color:var(--muted);letter-spacing:.1em}
+
+/* cascade slide */
+.cascade-step{display:flex;align-items:center;gap:16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px}
+.cascade-step .num{font-family:var(--mono);font-weight:700;font-size:13px;color:var(--bg);background:var(--blue);width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex:none}
+.cascade-step .body{font-size:14.5px;line-height:1.45}
+.cascade-step .body b{font-weight:700}
+.cascade-step .body .mono{font-size:12.5px;color:var(--muted)}
+.gate{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12.5px;padding:6px 0 6px 20px;color:var(--muted)}
+.gate .arrow{color:var(--blue)}
+.vline{width:2px;height:14px;background:var(--border);margin-left:30px}
+
+/* resilience rungs */
+.rung{display:flex;gap:16px;align-items:flex-start;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px}
+.rung .n{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--blue);flex:none;width:34px}
+.rung b{font-weight:700}
+.rung .d{font-size:14px;line-height:1.5;color:var(--muted)}
+.rung .d b{color:var(--text)}
+
+/* roadmap */
+.roadcol{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:12px}
+.roadcol h3{font-size:14px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+.roadcol .win{font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:8px}
+.roadcol ul{list-style:none;display:flex;flex-direction:column;gap:10px}
+.roadcol li{font-size:14px;line-height:1.45;padding-left:18px;position:relative;color:var(--text)}
+.roadcol li::before{content:"";position:absolute;left:0;top:.5em;width:7px;height:7px;border-radius:2px}
+.roadcol.p0 li::before{background:var(--red)}
+.roadcol.p1 li::before{background:var(--orange)}
+.roadcol.p2 li::before{background:var(--green)}
+
+svg text{font-family:Inter,sans-serif}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div id="hint">Arrow keys / Space</div>
+<div id="counter">1 / 12</div>
+<div id="viewport"><div id="stage">
+
+<!-- ============ SLIDE 1 : TITLE ============ -->
+<section class="slide" id="s1">
+  <div class="kicker">System Design · Deep Dive</div>
+  <h1>Safe Pakistan —<br><span class="accent">Architecture</span></h1>
+  <div class="sub">React Native · Expo · 3-layer AI cascade · offline-first resilience</div>
+  <div class="rule"></div>
+  <div class="meta">HACKATHON TECHNICAL Q&amp;A · JUDGES DECK</div>
+</section>
+
+<!-- ============ SLIDE 2 : HIGH-LEVEL ARCHITECTURE ============ -->
+<section class="slide">
+  <div class="kicker">01 · Topology</div>
+  <h2>High-Level Architecture</h2>
+  <div class="grow" style="justify-content:center">
+    <svg viewBox="0 0 1160 520" width="100%" height="440" role="img" aria-label="High-level architecture diagram">
+      <defs>
+        <marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#1B4FD8"/>
+        </marker>
+      </defs>
+      <!-- App box -->
+      <rect x="30" y="190" width="250" height="140" rx="12" fill="#141628" stroke="#1B4FD8" stroke-width="1.5"/>
+      <text x="155" y="245" text-anchor="middle" fill="#F1F5F9" font-size="17" font-weight="700">React Native App</text>
+      <text x="155" y="272" text-anchor="middle" fill="#94A3B8" font-size="13">Expo SDK · 15 screens</text>
+      <!-- HTTPS arrow -->
+      <line x1="280" y1="260" x2="400" y2="260" stroke="#1B4FD8" stroke-width="2" marker-end="url(#ab)"/>
+      <text x="340" y="242" text-anchor="middle" fill="#94A3B8" font-size="12" font-family="ui-monospace,Consolas,monospace">HTTPS</text>
+      <!-- API box -->
+      <rect x="405" y="190" width="260" height="140" rx="12" fill="#141628" stroke="#1B4FD8" stroke-width="1.5"/>
+      <text x="535" y="245" text-anchor="middle" fill="#F1F5F9" font-size="17" font-weight="700">Express API</text>
+      <text x="535" y="272" text-anchor="middle" fill="#94A3B8" font-size="13">on Cloud Run</text>
+      <!-- Connector lines -->
+      <line x1="665" y1="260" x2="730" y2="260" stroke="#1F2440" stroke-width="2"/>
+      <line x1="730" y1="100" x2="730" y2="420" stroke="#1F2440" stroke-width="2"/>
+      <line x1="730" y1="100" x2="790" y2="100" stroke="#1B4FD8" stroke-width="2" marker-end="url(#ab)"/>
+      <line x1="730" y1="260" x2="790" y2="260" stroke="#1B4FD8" stroke-width="2" marker-end="url(#ab)"/>
+      <line x1="730" y1="420" x2="790" y2="420" stroke="#1B4FD8" stroke-width="2" marker-end="url(#ab)"/>
+      <!-- L1 -->
+      <rect x="795" y="40" width="335" height="120" rx="12" fill="#1A1D35" stroke="#1F2440" stroke-width="1.5"/>
+      <text x="815" y="82" fill="#00C896" font-size="13" font-weight="800">L1</text>
+      <text x="850" y="82" fill="#F1F5F9" font-size="15" font-weight="700">Fine-tuned Qwen2.5-1.5B</text>
+      <text x="815" y="112" fill="#94A3B8" font-size="12.5">Ollama / local or hosted</text>
+      <!-- L2 -->
+      <rect x="795" y="200" width="335" height="120" rx="12" fill="#1A1D35" stroke="#1F2440" stroke-width="1.5"/>
+      <text x="815" y="242" fill="#1B4FD8" font-size="13" font-weight="800">L2</text>
+      <text x="850" y="242" fill="#F1F5F9" font-size="15" font-weight="700">Qwen-Max</text>
+      <text x="815" y="272" fill="#94A3B8" font-size="12.5">Alibaba Cloud Model Studio</text>
+      <text x="815" y="294" fill="#94A3B8" font-size="12.5">OpenAI-compatible</text>
+      <!-- L3 -->
+      <rect x="795" y="360" width="335" height="120" rx="12" fill="#1A1D35" stroke="#1F2440" stroke-width="1.5"/>
+      <text x="815" y="402" fill="#F4A261" font-size="13" font-weight="800">L3</text>
+      <text x="850" y="402" fill="#F1F5F9" font-size="15" font-weight="700">Local rule engine</text>
+      <text x="815" y="432" fill="#94A3B8" font-size="12.5">mirrored on-device too</text>
+    </svg>
+    <div class="callout" style="margin-top:8px">
+      App also embeds L3 rules on-device — <b>server is optional.</b>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SLIDE 3 : THE CASCADE ============ -->
+<section class="slide">
+  <div class="kicker">02 · Inference Path</div>
+  <h2>The Cascade</h2>
+  <div class="grow" style="gap:6px;justify-content:center">
+    <div class="cascade-step">
+      <div class="num">1</div>
+      <div class="body"><b>Layer 1 — fine-tuned Qwen2.5-1.5B</b> · runs only if configured<br><span class="mono">if L1 confidence ≥ 70 → return immediately</span></div>
+      <span class="chip g">model_used: YOUR_MODEL</span>
+    </div>
+    <div class="gate"><span class="arrow">↓</span> confidence &lt; 70 → escalate</div>
+    <div class="cascade-step">
+      <div class="num">2</div>
+      <div class="body"><b>Layer 2 — Qwen-Max</b> · the accurate teacher<br><span class="mono">temperature 0.1</span></div>
+      <span class="chip b">model_used: QWEN_MAX</span>
+    </div>
+    <div class="gate"><span class="arrow">↓</span> L2 fails (error / malformed payload) → fall through</div>
+    <div class="cascade-step">
+      <div class="num">3</div>
+      <div class="body"><b>Layer 3 — local rule engine</b> · the unbreakable floor<br><span class="mono">deterministic weighted rules, always available</span></div>
+      <span class="chip o">model_used: ON_DEVICE_RULES</span>
+    </div>
+    <div style="margin-top:16px" class="cols">
+      <div class="callout">
+        Every response carries <span class="mono" style="color:var(--text)">model_used</span>:
+        <span class="chip g" style="margin-left:6px">YOUR_MODEL</span>
+        <span class="chip b">QWEN_MAX</span>
+        <span class="chip o">ON_DEVICE_RULES</span>
+      </div>
+      <div class="callout red"><b>Safety rule: Unsure ⇒ suspicious, never safe.</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SLIDE 4 : API CONTRACT ============ -->
+<section class="slide">
+  <div class="kicker">03 · Interface</div>
+  <h2>API Contract</h2>
+  <div class="cols grow" style="align-items:stretch">
+    <div style="flex:1.35">
+<pre class="code">{
+  <span class="k">"verdict"</span>: <span class="s">"scam"</span>,
+  <span class="k">"score"</span>: <span class="n">96</span>,
+  <span class="k">"confidence"</span>: <span class="n">95</span>,
+  <span class="k">"type"</span>: <span class="s">"BISP 8171 Fraud"</span>,
+  <span class="k">"redFlags"</span>: [<span class="s">"OTP"</span>, <span class="s">"foran"</span>, <span class="s">"account band"</span>],
+  <span class="k">"explanation_en"</span>: <span class="s">"..."</span>,
+  <span class="k">"explanation_roman_ur"</span>: <span class="s">"..."</span>,
+  <span class="k">"explanation_urdu"</span>: <span class="s">"..."</span>,
+  <span class="k">"model_used"</span>: <span class="s">"QWEN_MAX"</span>
+}</pre>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center">
+      <ul class="bullets">
+        <li><b>Strict shape validation</b> — a malformed payload from any layer cascades to the next layer, never to the client.</li>
+        <li class="g"><b>Provider error bodies never surfaced</b> to the client — failures are absorbed by the cascade.</li>
+        <li class="o">Trilingual explanations ship in every verdict: English, Roman Urdu, Urdu script.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SLIDE 5 : ON-DEVICE RULE ENGINE ============ -->
+<section class="slide">
+  <div class="kicker">04 · Layer 3</div>
+  <h2>On-Device Rule Engine</h2>
+  <div class="cols grow">
+    <div class="card" style="flex:1.3;padding:8px 0">
+      <table>
+        <thead><tr><th>Signal</th><th style="text-align:right">Weight</th></tr></thead>
+        <tbody>
+          <tr><td>OTP / PIN / CVV request</td><td class="mono" style="text-align:right;color:var(--red)">+40</td></tr>
+          <tr><td>CNIC number</td><td class="mono" style="text-align:right;color:var(--red)">+25</td></tr>
+          <tr><td>Account band / block threat</td><td class="mono" style="text-align:right;color:var(--red)">+22</td></tr>
+          <tr><td>Urgency — <span class="mono">foran / turant / abhi / warna</span></td><td class="mono" style="text-align:right;color:var(--red)">+18</td></tr>
+          <tr><td>Prize / 25,000 / lottery</td><td class="mono" style="text-align:right;color:var(--red)">+16</td></tr>
+          <tr><td>Link / verify / click</td><td class="mono" style="text-align:right;color:var(--red)">+10</td></tr>
+          <tr><td>Trusted senders — <span class="mono">8171, 4444, JAZZCASH, EASYPAISA</span></td><td class="mono" style="text-align:right;color:var(--green)">−40</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:14px">
+      <div class="card">
+        <div class="kicker" style="margin-bottom:10px">Thresholds</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:14.5px">
+          <div><span class="chip r">≥ 75</span> &nbsp;scam</div>
+          <div><span class="chip o">40 – 74</span> &nbsp;suspicious</div>
+          <div><span class="chip g">&lt; 40</span> &nbsp;safe</div>
+        </div>
+      </div>
+      <div class="card s2">
+        <div class="kicker" style="margin-bottom:10px">Verified Outputs</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:14.5px">
+          <div><span class="mono red">scam&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;96</span></div>
+          <div><span class="mono orange">suspicious&nbsp;53</span></div>
+          <div><span class="mono green">safe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SLIDE 6 : RESILIENCE LADDER ============ -->
+<section class="slide">
+  <div class="kicker">05 · Reliability</div>
+  <h2>Resilience Ladder</h2>
+  <div class="grow" style="gap:12px;justify-content:center">
+    <div class="rung">
+      <div class="n">01</div>
+      <div><b>3-second backend cap</b> — <span class="mono muted">Promise.race</span><div class="d">If the LLM is slow, the <b>offline result ships</b>. Latency is bounded, always.</div></div>
+    </div>
+    <div class="rung">
+      <div class="n">02</div>
+      <div><b>1.4s minimum loading dwell</b><div class="d">UX choreography always plays — fast backends wait for the animation, never the reverse.</div></div>
+    </div>
+    <div class="rung">
+      <div class="n">03</div>
+      <div><b>DEMO_MODE.offlineOnly kill switch</b><div class="d">Zero-network operation on demand — full verdict flow with no connectivity.</div></div>
+    </div>
+    <div class="rung">
+      <div class="n">04</div>
+      <div><b>Graceful degradation</b><div class="d">Backend down ⇒ <b>the app never knows</b>.</div></div>
+    </div>
+    <div class="callout green" style="margin-top:6px">
+      <b>Rehearsal incident, real evidence:</b> cloud endpoint returned <span class="mono">503</span> during rehearsal — <b>app verdict unchanged.</b>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SLIDE 7 : FINE-TUNED LAYER 1 ============ -->
+<section class="slide">
+  <div class="kicker">06 · Training</div>
+  <h2>Fine-Tuned Layer 1</h2>
+  <div class="cols grow">
+    <div style="flex:1.15;display:flex;flex-direction:column;gap:14px">
+      <div class="card">
+        <div class="kicker" style="margin-bottom:10px">Recipe</div>
+        <ul class="bullets" style="gap:9px">
+          <li><b>Base:</b> Qwen2.5-1.5B-Instruct + <b>LoRA via Unsloth</b></li>
+          <li><b>Hardware:</b> Tesla T4</li>
+          <li><b>Data:</b> 1,500 labeled Pakistani scam examples</li>
+          <li><b>Run:</b> 1 epoch · 60 steps · loss <span class="mono">2.14 → 0.027</span></li>
+          <li><b>Output:</b> adapters exported</li>
+        </ul>
+      </div>
+      <div class="card s2">
+        <div class="kicker" style="margin-bottom:10px">Serving Plan</div>
+        <div style="font-size:14.5px;line-height:1.6">
+          merge → GGUF → Ollama<br>
+          <span class="mono" style="font-size:13px;color:var(--muted)">QWEN_BASE_URL=http://localhost:11434/v1</span>
+        </div>
+      </div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:14px">
+      <div class="card" style="border-color:var(--blue)">
+        <div class="kicker" style="margin-bottom:10px">The Gate</div>
+        <div style="font-size:15px;line-height:1.6">Confidence gate <span class="chip b">≥ 70</span> decides escalation — the small model only answers when it is sure; everything else goes to the teacher.</div>
+      </div>
+      <div class="callout orange">
+        <b>Honest flags:</b> held-out eval + confidence calibration are <b>required before trusting it</b> in production. Loss curves alone are not proof.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SLIDE 8 : COST MODEL ============ -->
+<section class="slide">
+  <div class="kicker">07 · Economics</div>
+  <h2>Cost Model</h2>
+  <div class="grow" style="justify-content:center;gap:20px">
+    <div class="card" style="padding:8px 0">
+      <table>
+        <thead><tr><th>Scenario</th><th style="text-align:right">Monthly Cost</th></tr></thead>
+        <tbody>
+          <tr><td><b>Volume</b> — 100K MAU × 3 scans/day</td><td class="mono" style="text-align:right">= 300K scans/day</td></tr>
+          <tr><td>100% qwen-max</td><td class="mono" style="text-align:right;color:var(--red)">≈ $25–30K/mo</td></tr>
+          <tr><td>With FT Layer 1 handling ~85%</td><td class="mono" style="text-align:right;color:var(--green)">≈ $4–5K/mo&nbsp;&nbsp;(−85%)</td></tr>
+          <tr><td>Local 1.5B</td><td class="mono" style="text-align:right;color:var(--muted)">marginal cost ≈ electricity</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout" style="text-align:center;font-size:17px;border-left:none;border-top:3px solid var(--green);border-radius:10px">
+      <b>"Accuracy preserved by the gate; cost destroyed by the small model."</b>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SLIDE 9 : FRONTEND ARCHITECTURE ============ -->
+<section class="slide">
+  <div class="kicker">08 · Client</div>
+  <h2>Frontend Architecture</h2>
+  <div class="grow" style="justify-content:center">
+    <ul class="bullets" style="gap:16px;font-size:16px;max-width:1080px">
+      <li><b>Expo SDK + React Navigation</b> — native stack + <b>5 bottom tabs</b>.</li>
+      <li class="g"><b>Reanimated for motion</b> — no core <span class="mono">Animated</span> anywhere.</li>
+      <li class="o"><b>react-native-svg ThreatRing</b> — vector threat visualization, resolution-independent.</li>
+      <li><b>Design tokens are the single source of truth</b> — <span class="mono">tokens.js</span>: COLORS / SIZE / RADIUS / SPACE / SHADOW / gradients, plus <span class="mono">typography.js</span>.</li>
+      <li class="g"><b>Screens fit 390×844</b> with designated scrollers only — Analytics, Library, Chat.</li>
+      <li class="o"><b>Safe-area-aware tab bar</b> via <span class="mono">useSafeAreaInsets</span>.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ SLIDE 10 : DESIGN SYSTEM AS ENGINEERING ============ -->
+<section class="slide">
+  <div class="kicker">09 · Discipline</div>
+  <h2>Design System as Engineering</h2>
+  <div class="grow" style="justify-content:center">
+    <ul class="bullets" style="gap:14px;font-size:15.5px;max-width:1100px">
+      <li><b>Zero hardcoded hex / radius / spacing</b> outside tokens — enforced by grep gates.</li>
+      <li class="g"><b>Blue-tinted shadows</b> as brand signature.</li>
+      <li class="r"><b>Semantic color law:</b> red = scam verdict <b>ONLY</b>.</li>
+      <li class="o"><b>Urdu typography rules:</b> English size +2, lineHeight ×1.8, RTL Nastaliq — <span style="font-family:var(--urdu);font-size:17px">نستعلیق</span> never mixed with English in one <span class="mono">Text</span> node.</li>
+      <li class="g"><b>≥ 44pt hit targets</b> on every interactive element.</li>
+      <li><b>Verdict text floor 17pt</b> — legibility is a safety property.</li>
+      <li class="o"><b>Export gate</b> — <span class="mono">expo export</span> as a CI-style boot check.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ SLIDE 11 : SECURITY & RISKS ============ -->
+<section class="slide">
+  <div class="kicker">10 · Honest Register</div>
+  <h2>Security &amp; Risks</h2>
+  <div class="grow" style="justify-content:center">
+    <ul class="bullets" style="gap:15px;font-size:15.5px;max-width:1080px">
+      <li class="r"><b>No auth / rate-limit on the API yet</b> — <span class="chip r">P0 post-demo</span></li>
+      <li><b>.env keys live server-side only</b> — nothing sensitive ships in the bundle.</li>
+      <li class="g"><b>Data-minimal storage philosophy:</b> we keep verdicts, <b>not raw messages</b>.</li>
+      <li class="o"><b>Conservative verdict bias</b> as the safety default — unsure is suspicious, never safe.</li>
+      <li><b>Regulatory awareness:</b> PTA / PECA context; <b>consent-gated Family Shield</b>.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ SLIDE 12 : ROADMAP ============ -->
+<section class="slide">
+  <div class="kicker">11 · What's Next</div>
+  <h2>Roadmap</h2>
+  <div class="cols grow">
+    <div class="roadcol p0">
+      <h3 class="red">P0</h3>
+      <div class="win">0 – 30 days</div>
+      <ul>
+        <li>Auth + rate limits</li>
+        <li>Verdict feedback loop</li>
+        <li>Real persistence</li>
+        <li>NCCIA deeplink</li>
+      </ul>
+    </div>
+    <div class="roadcol p1">
+      <h3 class="orange">P1</h3>
+      <div class="win">31 – 90 days</div>
+      <ul>
+        <li>Real Family Shield push (<span class="mono" style="font-size:12.5px">expo-notifications</span>)</li>
+        <li>Published 500-message eval set</li>
+        <li>Guardian chat on Qwen</li>
+      </ul>
+    </div>
+    <div class="roadcol p2">
+      <h3 class="green">P2</h3>
+      <div class="win">90 days +</div>
+      <ul>
+        <li>SMS pre-warning listener</li>
+        <li>B2B white-label API</li>
+        <li>On-device 1.5B</li>
+      </ul>
+    </div>
+  </div>
+  <div class="callout" style="margin-top:22px;text-align:center;font-size:18px;border-left:none;border-top:3px solid var(--blue);border-radius:10px">
+    <b>"The cascade is the product: unbreakable floor, accurate teacher, cheap student."</b>
+  </div>
+</section>
+
+</div></div>
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var counter = document.getElementById('counter');
+  var bar = document.getElementById('progress');
+  var idx = 0;
+
+  function go(i){
+    idx = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach(function(s, j){ s.classList.toggle('active', j === idx); });
+    counter.textContent = (idx + 1) + ' / ' + slides.length;
+    bar.style.width = (((idx + 1) / slides.length) * 100) + '%';
+  }
+
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); go(idx + 1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); go(idx - 1); }
+    else if (e.key === 'Home') { e.preventDefault(); go(0); }
+    else if (e.key === 'End') { e.preventDefault(); go(slides.length - 1); }
+  });
+
+  var stage = document.getElementById('stage');
+  function fit(){
+    var s = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+    stage.style.transform = 'translate(-50%,-50%) scale(' + s + ')';
+  }
+  window.addEventListener('resize', fit);
+  fit();
+  go(0);
+})();
+</script>
+</body>
+</html>

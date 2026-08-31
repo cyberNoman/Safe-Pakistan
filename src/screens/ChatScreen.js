@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, TextInput, StyleSheet, StatusBar, Ke
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONTS, RADIUS, SHADOW, gradients } from '@/theme/tokens';
+import { COLORS, FONTS, SIZE, RADIUS, SPACE, SHADOW, gradients } from '@/theme/tokens';
 import { typo } from '@/theme/typography';
 
 const SUGGESTIONS = [
@@ -14,13 +14,29 @@ const SUGGESTIONS = [
 
 export default function ChatScreen({ navigation }) {
   const [text, setText] = useState('');
-  const [messages] = useState([
+  const [messages, setMessages] = useState([
     { id:'1', from:'bot',  enText:'Assalam o Alaikum Ahmed!', urText:'السلام علیکم! میں آپ کا گارڈین ہوں۔' },
     { id:'2', from:'user', text:'Kya yeh number theek hai? 0312-1234567' },
     { id:'3', from:'bot',  enText:'Yeh JazzCash ka official number nahi hai. JazzCash sirf 4444 se SMS bhejta hai.', warn:'Iss number ne 3 logon ko scam kiya hai.' },
     { id:'4', from:'user', text:'BISP 8171 kya hota hai?' },
     { id:'5', from:'bot',  urText:'بے نظیر انکم سپورٹ پروگرام صرف 8171 سے پیغام بھیجتا ہے' },
   ]);
+
+  const send = () => {
+    if (!text.trim()) return;
+    const userMsg = { id: Date.now(), from: 'user', text };
+    setMessages(prev => [...prev, userMsg]);
+    setText('');
+    setTimeout(() => {
+      const botMsg = {
+        id: Date.now() + 1,
+        from: 'bot',
+        enText: 'Main aapki madad karne ke liye tayar hoon.',
+        urText: 'میں آپ کی مدد کرنے کے لیے تیار ہوں۔',
+      };
+      setMessages(prev => [...prev, botMsg]);
+    }, 1000);
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.surface }} edges={['top']}>
@@ -29,38 +45,39 @@ export default function ChatScreen({ navigation }) {
       {/* Header */}
       <View style={styles.header}>
         <LinearGradient colors={gradients.hero.colors} start={gradients.hero.start} end={gradients.hero.end}
-          style={styles.botAvatar}
+          style={[styles.botAvatar, SHADOW.card]}
         >
-          <Ionicons name="shield-checkmark" size={22} color="#fff" />
+          <Ionicons name="shield-checkmark" size={SIZE.xl} color={COLORS.white} />
           <View style={styles.onlineDot} />
         </LinearGradient>
         <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={{ fontFamily: FONTS.enExtra, fontSize: 15, color: COLORS.text }}>Guardian</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACE.sm }}>
+            <Text style={{ fontFamily: FONTS.enExtra, fontSize: SIZE.base, color: COLORS.text }}>Guardian</Text>
             <View style={styles.aiBadge}><Text style={styles.aiBadgeText}>AI</Text></View>
           </View>
-          <Text style={{ fontFamily: FONTS.enMedium, fontSize: 12, color: COLORS.accent, marginTop: 2 }}>
+          <Text style={{ fontFamily: FONTS.enMedium, fontSize: SIZE.xs, color: COLORS.accent, marginTop: SPACE.xs }}>
             ● Online · Replies in Urdu / English
           </Text>
         </View>
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView style={{ flex: 1, backgroundColor: COLORS.bg }}
-          contentContainerStyle={{ padding: 16, gap: 10 }}>
+        {/* Message list — inverted so the newest message is always anchored at the bottom */}
+        <ScrollView inverted style={styles.msgList} contentContainerStyle={styles.msgListContent}
+          keyboardShouldPersistTaps="handled">
+          {[...messages].reverse().map(m => m.from === 'bot' ? <BotMsg key={m.id} m={m} /> : <UserMsg key={m.id} text={m.text} />)}
           <View style={styles.datePill}>
-            <Text style={styles.datePillText}>AAJ · TODAY</Text>
+            <Text style={typo.labelEn}>AAJ · TODAY</Text>
           </View>
-          {messages.map(m => m.from === 'bot' ? <BotMsg key={m.id} m={m} /> : <UserMsg key={m.id} text={m.text} />)}
         </ScrollView>
 
-        {/* Suggestions */}
+        {/* Suggestions — horizontal rail, swipeable */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false}
           style={{ backgroundColor: COLORS.bg }}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, gap: 6 }}>
+          contentContainerStyle={styles.suggestionRail}>
           {SUGGESTIONS.map((s, i) => (
             <Pressable key={i} style={styles.suggestion}>
-              <Text style={{ fontFamily: FONTS.enSemibold, fontSize: 12, color: COLORS.primary }}>{s}</Text>
+              <Text style={{ fontFamily: FONTS.enSemibold, fontSize: SIZE.sm, color: COLORS.primary }}>{s}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -74,13 +91,13 @@ export default function ChatScreen({ navigation }) {
               placeholderTextColor={COLORS.textMuted}
               style={styles.input}
             />
-            <Ionicons name="mic" size={18} color={COLORS.textMuted} />
+            <Ionicons name="mic" size={SIZE.lg} color={COLORS.textMuted} />
           </View>
-          <Pressable style={[styles.sendBtn, SHADOW.elevated]}>
+          <Pressable onPress={send} style={[styles.sendBtn, SHADOW.elevated]}>
             <LinearGradient colors={gradients.hero.colors} start={gradients.hero.start} end={gradients.hero.end}
               style={StyleSheet.absoluteFill}
             />
-            <Ionicons name="send" size={18} color="#fff" />
+            <Ionicons name="send" size={SIZE.lg} color={COLORS.white} />
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -94,15 +111,18 @@ function BotMsg({ m }) {
       <LinearGradient colors={gradients.hero.colors} start={gradients.hero.start} end={gradients.hero.end}
         style={styles.botMini}
       >
-        <Ionicons name="shield-checkmark" size={14} color="#fff" />
+        <Ionicons name="shield-checkmark" size={SIZE.sm} color={COLORS.white} />
       </LinearGradient>
       <View style={styles.botBubble}>
-        {m.enText && <Text style={{ fontFamily: FONTS.enMedium, fontSize: 13, color: COLORS.text, lineHeight: 20 }}>{m.enText}</Text>}
-        {m.urText && <Text style={[typo.bodyUr, { marginTop: m.enText ? 6 : 0 }]}>{m.urText}</Text>}
+        {m.enText && <Text style={styles.botText}>{m.enText}</Text>}
+        {m.urText && <Text style={[typo.bodyUr, { marginTop: m.enText ? SPACE.xs : 0 }]}>{m.urText}</Text>}
         {m.warn && (
           <View style={styles.warn}>
-            <Text style={styles.warnLabel}>⚠ SUSPICIOUS NUMBER</Text>
-            <Text style={{ fontFamily: FONTS.enMedium, fontSize: 12, color: COLORS.text, marginTop: 4 }}>{m.warn}</Text>
+            <View style={styles.warnLabelRow}>
+              <Ionicons name="alert-circle" size={SIZE.xs} color={COLORS.danger} />
+              <Text style={[typo.labelEn, { color: COLORS.danger }]}>SUSPICIOUS NUMBER</Text>
+            </View>
+            <Text style={styles.botText}>{m.warn}</Text>
           </View>
         )}
       </View>
@@ -116,7 +136,7 @@ function UserMsg({ text }) {
       <LinearGradient colors={gradients.hero.colors} start={gradients.hero.start} end={gradients.hero.end}
         style={styles.userBubble}
       >
-        <Text style={{ fontFamily: FONTS.enMedium, fontSize: 13, color: '#fff' }}>{text}</Text>
+        <Text style={{ fontFamily: FONTS.enMedium, fontSize: SIZE.sm, color: COLORS.white }}>{text}</Text>
       </LinearGradient>
     </View>
   );
@@ -124,62 +144,65 @@ function UserMsg({ text }) {
 
 const styles = StyleSheet.create({
   header: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 20, paddingTop: 6, paddingBottom: 14,
+    flexDirection: 'row', alignItems: 'center', gap: SPACE.sm,
+    paddingHorizontal: SPACE.lg, paddingTop: SPACE.sm, paddingBottom: SPACE.md,
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
     backgroundColor: COLORS.surface,
   },
   botAvatar: {
-    width: 44, height: 44, borderRadius: 99,
+    width: 44, height: 44, borderRadius: RADIUS.chip,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: COLORS.primary, shadowOpacity: 0.3, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 6,
   },
   onlineDot: {
     position: 'absolute', bottom: -1, right: -1,
-    width: 12, height: 12, borderRadius: 99, backgroundColor: COLORS.accent,
-    borderWidth: 2, borderColor: '#fff',
+    width: 12, height: 12, borderRadius: RADIUS.chip, backgroundColor: COLORS.accent,
+    borderWidth: 2, borderColor: COLORS.white,
   },
-  aiBadge: { backgroundColor: COLORS.primary, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  aiBadgeText: { fontFamily: FONTS.enBold, fontSize: 10, color: '#fff', letterSpacing: 0.3 },
+  aiBadge: { backgroundColor: COLORS.primary, paddingHorizontal: SPACE.xs, paddingVertical: SPACE.xs, borderRadius: RADIUS.chip },
+  aiBadgeText: { fontFamily: FONTS.enBold, fontSize: SIZE.xs, color: COLORS.white, letterSpacing: 0.3 },
+  msgList: { flex: 1, backgroundColor: COLORS.bg },
+  msgListContent: { padding: SPACE.md, gap: SPACE.sm },
   datePill: {
-    alignSelf: 'center', paddingHorizontal: 10, paddingVertical: 4,
-    backgroundColor: COLORS.surface, borderRadius: 99,
-    borderWidth: 1, borderColor: COLORS.border, marginVertical: 4,
+    alignSelf: 'center', paddingHorizontal: SPACE.sm, paddingVertical: SPACE.xs,
+    backgroundColor: COLORS.surface, borderRadius: RADIUS.chip,
+    borderWidth: 1, borderColor: COLORS.border, marginVertical: SPACE.xs,
   },
-  datePillText: { fontFamily: FONTS.enBold, fontSize: 10, color: COLORS.textMuted, letterSpacing: 0.8 },
-  botRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, maxWidth: '85%' },
-  botMini: { width: 28, height: 28, borderRadius: 99, alignItems: 'center', justifyContent: 'center' },
+  botRow: { flexDirection: 'row', alignItems: 'flex-end', gap: SPACE.sm, maxWidth: '85%' },
+  botMini: { width: 28, height: 28, borderRadius: RADIUS.chip, alignItems: 'center', justifyContent: 'center' },
   botBubble: {
-    backgroundColor: COLORS.surface2, paddingHorizontal: 14, paddingVertical: 10,
-    borderRadius: 16, borderTopLeftRadius: 4, flexShrink: 1,
+    backgroundColor: COLORS.surface2, paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm,
+    borderRadius: RADIUS.btn, borderTopLeftRadius: RADIUS.sm, flexShrink: 1,
   },
+  botText: { fontFamily: FONTS.enMedium, fontSize: SIZE.sm, color: COLORS.text, lineHeight: SIZE.sm * 1.5 },
   userBubble: {
-    paddingHorizontal: 14, paddingVertical: 10,
-    borderRadius: 16, borderBottomRightRadius: 4,
-    shadowColor: COLORS.primary, shadowOpacity: 0.25, shadowRadius: 12, shadowOffset:{width:0,height:4},
+    paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm,
+    borderRadius: RADIUS.btn, borderBottomRightRadius: RADIUS.sm,
+    ...SHADOW.card,
   },
   warn: {
-    marginTop: 8, padding: 10, borderRadius: 10,
-    backgroundColor: COLORS.dangerBg, borderLeftWidth: 3, borderLeftColor: COLORS.danger,
+    marginTop: SPACE.sm, padding: SPACE.sm, borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.dangerBg,
   },
-  warnLabel: { fontFamily: FONTS.enExtra, fontSize: 11, color: COLORS.danger, letterSpacing: 0.6 },
+  warnLabelRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.xs, marginBottom: SPACE.xs },
+  suggestionRail: { paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm, gap: SPACE.sm },
   suggestion: {
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 99,
+    paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm, borderRadius: RADIUS.chip,
     backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border,
+    minHeight: 44, justifyContent: 'center',
   },
   inputBar: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 16, paddingVertical: 10, paddingBottom: 14,
+    flexDirection: 'row', alignItems: 'center', gap: SPACE.sm,
+    paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm,
     backgroundColor: COLORS.bg,
   },
   inputWrap: {
-    flex: 1, height: 46, borderRadius: 99, backgroundColor: '#fff',
+    flex: 1, height: 46, borderRadius: RADIUS.chip, backgroundColor: COLORS.surface,
     borderWidth: 1, borderColor: COLORS.border,
-    paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: SPACE.md, flexDirection: 'row', alignItems: 'center', gap: SPACE.sm,
   },
-  input: { flex: 1, fontFamily: FONTS.enMedium, fontSize: 14, color: COLORS.text },
+  input: { flex: 1, fontFamily: FONTS.enMedium, fontSize: SIZE.sm, color: COLORS.text },
   sendBtn: {
-    width: 46, height: 46, borderRadius: 99,
+    width: 46, height: 46, borderRadius: RADIUS.chip, flexShrink: 0,
     overflow: 'hidden', alignItems: 'center', justifyContent: 'center',
   },
 });

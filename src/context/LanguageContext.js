@@ -1,71 +1,73 @@
 /**
- * LanguageContext — exactly three languages: English · اردو · Roman Urdu.
- * Contract (AGENTS.md): language, setLang, t(), isRTL, ttsLocale.
- * Never add Punjabi / Sindhi / Pashto / Balochi.
+ * LanguageContext — 3 languages only: English · اردو · Roman Urdu.
+ * Usage: const { language, setLanguage, t, isRTL } = useLanguageContext();
  */
-import React, { createContext, useContext, useMemo, useState, useCallback } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
-export const LANGS = [
-  { code: 'en',    label: 'English' },
-  { code: 'ur',    label: 'اردو' },
-  { code: 'roman', label: 'Roman Urdu' },
-];
-
-// Minimal shared dictionary; screens may keep their own copy strings.
-const STRINGS = {
+export const TRANSLATIONS = {
   en: {
     appName: 'Safe Pakistan',
     tagline: 'Apne Ghar Ki Hifazat',
-    scan: 'Scan',
+    checkMessage: 'Check a message',
+    analyzing: 'Analyzing',
     safe: 'Safe',
-    scam: 'Scam',
     suspicious: 'Suspicious',
-    report: 'NCCIA Shikayat',
+    scam: 'Scam',
+    familyShield: 'Family Shield',
+    threatLibrary: 'Threat Library',
   },
   ur: {
     appName: 'سیف پاکستان',
     tagline: 'اپنے گھر کی حفاظت',
-    scan: 'جانچ',
+    checkMessage: 'پیغام کی جانچ کریں',
+    analyzing: 'جانچ جاری ہے',
     safe: 'محفوظ',
-    scam: 'دھوکہ',
     suspicious: 'مشکوک',
-    report: 'این سی سی اے شکایت',
+    scam: 'دھوکہ',
+    familyShield: 'فیملی شیلڈ',
+    threatLibrary: 'تھرٹ لائبریری',
   },
-  roman: {
+  ru: {
     appName: 'Safe Pakistan',
     tagline: 'Apne Ghar Ki Hifazat',
-    scan: 'Jaanch',
+    checkMessage: 'Message jaanchein',
+    analyzing: 'Jaanch chal rahi hai',
     safe: 'Mehfooz',
+    suspicious: 'Shaki',
     scam: 'Dhoka',
-    suspicious: 'Mashkook',
-    report: 'NCCIA Shikayat',
+    familyShield: 'Family Shield',
+    threatLibrary: 'Threat Library',
   },
 };
+
+const TTS_LOCALES = { en: 'en-PK', ur: 'ur-PK', ru: 'en-PK' };
 
 const LanguageContext = createContext(null);
 
 export function LanguageProvider({ children }) {
-  const [language, setLang] = useState('en');
+  const [language, setLanguage] = useState('ur'); // 'en' | 'ur' | 'ru'
 
-  const isRTL = language === 'ur';
-  const ttsLocale = language === 'ur' ? 'ur-PK' : 'en-US';
+  const setLang = useCallback(code => {
+    if (TRANSLATIONS[code]) setLanguage(code);
+  }, []);
 
   const t = useCallback(
-    key => (STRINGS[language] && STRINGS[language][key]) || STRINGS.en[key] || key,
+    key => (TRANSLATIONS[language] && TRANSLATIONS[language][key]) || TRANSLATIONS.en[key] || key,
     [language]
   );
 
   const value = useMemo(() => ({
     language,
+    setLanguage: setLang,
     setLang,
     t,
-    isRTL,
-    ttsLocale,
-  }), [language, t, isRTL, ttsLocale]);
+    isRTL: language === 'ur',
+    ttsLocale: TTS_LOCALES[language] || 'en-PK',
+  }), [language, setLang, t]);
 
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 
 export function useLanguageContext() {
-  return useContext(LanguageContext);
+  return useContext(LanguageContext) || {};
 }

@@ -8,17 +8,19 @@
  *           react-native-safe-area-context react-native-screens
  */
 import React from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-import { COLORS, FONTS } from '@/theme/tokens';
+import { COLORS, FONTS, SIZE, SPACE, SHADOW } from '@/theme/tokens';
 
 import WelcomeScreen   from '@/screens/WelcomeScreen';
 import HomeScreen      from '@/screens/HomeScreen';
 import ScanScreen      from '@/screens/ScanScreen';
+import LoadingScreen   from '@/screens/LoadingScreen';
 import VerdictScreen   from '@/screens/VerdictScreen';
 import VoiceScreen     from '@/screens/VoiceScreen';
 import FamilyScreen    from '@/screens/FamilyScreen';
@@ -43,28 +45,33 @@ const TAB_ICONS = {
 function TabBarIcon({ name, focused }) {
   const icons = TAB_ICONS[name];
   return (
-    <View style={{ alignItems: 'center', justifyContent: 'flex-start', paddingTop: 4 }}>
+    <View style={{ alignItems: 'center', justifyContent: 'flex-start', paddingTop: SPACE.xs }}>
       {focused && <View style={styles.indicator} />}
       <Ionicons
         name={focused ? icons.on : icons.off}
-        size={24}
-        color={focused ? COLORS.primary : '#94A3B8'}
-        style={{ marginTop: 4 }}
+        size={SIZE.xl}
+        color={focused ? COLORS.primary : COLORS.textMuted}
+        style={{ marginTop: SPACE.xs }}
       />
     </View>
   );
 }
 
 function MainTabs() {
+  // Bottom inset = home indicator / Android gesture bar; keeps tabs above system UI.
+  const insets = useSafeAreaInsets();
   return (
     <Tabs.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarShowLabel: true,
-        tabBarLabelStyle: { fontFamily: FONTS.enSemibold, fontSize: 10, marginTop: -2 },
+        tabBarLabelStyle: { fontFamily: FONTS.enSemibold, fontSize: SIZE.xs },
         tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: '#94A3B8',
-        tabBarStyle: styles.tabBar,
+        tabBarInactiveTintColor: COLORS.textMuted,
+        tabBarStyle: [
+          styles.tabBar,
+          { height: 72 + insets.bottom, paddingBottom: insets.bottom + SPACE.xs },
+        ],
         tabBarIcon: ({ focused }) => <TabBarIcon name={route.name} focused={focused} />,
       })}
     >
@@ -86,6 +93,8 @@ export default function AppNavigator({ hasOnboarded = false }) {
       >
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="Main"    component={MainTabs} />
+        <Stack.Screen name="Loading" component={LoadingScreen}
+          options={{ animation: 'fade' }} />
         <Stack.Screen name="Verdict" component={VerdictScreen}
           options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="Voice"   component={VoiceScreen}
@@ -103,18 +112,14 @@ export default function AppNavigator({ hasOnboarded = false }) {
 
 const styles = StyleSheet.create({
   tabBar: {
-    height: 72 + (Platform.OS === 'ios' ? 18 : 0),
-    paddingTop: 6,
-    paddingBottom: Platform.OS === 'ios' ? 18 : 6,
-    backgroundColor: '#FFFFFFE8',
-    borderTopWidth: 0,
-    elevation: 12,
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.08, shadowRadius: 24, shadowOffset: { width: 0, height: -2 },
-    position: 'absolute',
+    paddingTop: SPACE.xs,
+    backgroundColor: COLORS.surface,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    ...SHADOW.elevated,
   },
   indicator: {
     position: 'absolute', top: 0,
-    width: 22, height: 3, borderRadius: 3, backgroundColor: COLORS.primary,
+    width: SIZE.xl, height: SPACE.xs, borderRadius: SPACE.xs, backgroundColor: COLORS.primary,
   },
 });

@@ -1,5 +1,6 @@
 /**
  * ScanScreen — paste/type SMS, take screenshot, voice input → analyze.
+ * Fits one 390×844 viewport (no vertical scroll by design).
  * Wire `onAnalyze` to your backend (see README).
  */
 import React, { useState } from 'react';
@@ -9,9 +10,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 
-import { COLORS, FONTS, RADIUS, SPACE, SHADOW, gradients } from '@/theme/tokens';
+import { COLORS, FONTS, SIZE, RADIUS, SPACE, SHADOW, gradients } from '@/theme/tokens';
 import { typo } from '@/theme/typography';
 import { ActivityFeedItem, SectionHeader } from '@/components/Cards';
+import { PRESET_SMS } from '@/data/mockData';
+import { analyzeText } from '@/services/api';
 
 // Mock findings shown on the screenshot result screen until vision analysis lands.
 const ISSUES = [
@@ -22,12 +25,9 @@ const ISSUES = [
 
 // Quick-select preset SMS for one-tap demos of each verdict class.
 const PRESETS = [
-  { key:'scam',  label:'Scam Sample',
-    text:'Mubarak ho! Apko 25,000 mile hain. OTP bhejein foran warna account band ho jayega.' },
-  { key:'safe',  label:'Safe Sample',
-    text:'Your JazzCash statement for August shows a credit of Rs 5,000. No action required.' },
-  { key:'susp',  label:'Suspicious Sample',
-    text:'Dear customer, your account will be blocked within 2 hours. Verify now by clicking the link.' },
+  { key:'scam', label:'SCAM Demo', text: PRESET_SMS.scam },
+  { key:'safe', label:'SAFE Demo', text: PRESET_SMS.safe },
+  { key:'susp', label:'SUSP Demo', text: PRESET_SMS.suspicious },
 ];
 
 export default function ScanScreen({ navigation }) {
@@ -40,10 +40,10 @@ export default function ScanScreen({ navigation }) {
   };
 
   const analyze = async () => {
-    // navigation.navigate('Loading');
-    // const result = await ScanService.analyze(text);
-    // navigation.replace('Verdict', { verdict: result.verdict, score: result.score, ... });
-    navigation?.navigate?.('Verdict', { verdict: 'scam' });
+    if (!text.trim()) return;
+    // LoadingScreen runs analyzeText() (backend → offline fallback) and
+    // replaces itself with the Verdict screen.
+    navigation?.navigate?.('Loading', { text });
   };
 
   // Screenshot chip → pick from gallery → mock-analyzed result screen.
@@ -63,15 +63,15 @@ export default function ScanScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle="dark-content" />
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.headerRow}>
           <View>
-            <Text style={{ fontFamily: FONTS.enExtra, fontSize: 24, color: COLORS.text }}>SMS Jaanchein</Text>
-            <Text style={[typo.bodyUrSm, { marginTop: 2 }]}>پیغام کی جانچ کریں</Text>
+            <Text style={{ fontFamily: FONTS.enExtra, fontSize: SIZE.xl, color: COLORS.text }}>SMS Jaanchein</Text>
+            <Text style={[typo.bodyUrSm, { marginTop: SPACE.xs }]}>پیغام کی جانچ کریں</Text>
           </View>
           <View style={styles.headerIcon}>
-            <Ionicons name="scan" size={20} color={COLORS.primary} />
+            <Ionicons name="scan" size={SIZE.xl} color={COLORS.primary} />
           </View>
         </View>
 
@@ -86,7 +86,7 @@ export default function ScanScreen({ navigation }) {
             multiline
             style={styles.input}
           />
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+          <View style={{ flexDirection: 'row', gap: SPACE.sm, marginTop: SPACE.sm }}>
             <Chip icon="camera-outline" label="Screenshot" onPress={pickScreenshot} />
             <Chip icon="mic-outline"    label="Awaaz" onPress={() => navigation?.navigate?.('Voice')} />
             <Chip icon="share-outline"  label="Share" />
@@ -94,9 +94,9 @@ export default function ScanScreen({ navigation }) {
         </View>
 
         {/* Preset SMS quick-select */}
-        <View style={{ marginTop: 16 }}>
+        <View style={{ marginTop: SPACE.md }}>
           <SectionHeader title="Preset SMS" urduTitle="نمونہ پیغام" />
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flexDirection: 'row', gap: SPACE.sm }}>
             {PRESETS.map(p => (
               <PresetChip key={p.key} label={p.label} active={preset === p.key}
                 onPress={() => applyPreset(p)} />
@@ -106,13 +106,13 @@ export default function ScanScreen({ navigation }) {
 
         {/* CTA */}
         <Pressable onPress={analyze} style={({ pressed }) => [
-          { marginTop: 16 }, pressed && { transform: [{ scale: 0.98 }] }
+          { marginTop: SPACE.md }, pressed && { transform: [{ scale: 0.98 }] }
         ]}>
           <LinearGradient
             colors={gradients.hero.colors} start={gradients.hero.start} end={gradients.hero.end}
-            style={styles.cta}
+            style={[styles.cta, SHADOW.elevated]}
           >
-            <Ionicons name="shield-checkmark" size={22} color="#fff" />
+            <Ionicons name="shield-checkmark" size={SIZE.xl} color={COLORS.white} />
             <Text style={styles.ctaText}>JAANCH KAREIN</Text>
           </LinearGradient>
         </Pressable>
@@ -120,11 +120,11 @@ export default function ScanScreen({ navigation }) {
         {/* Tip */}
         <View style={styles.tip}>
           <View style={styles.tipIcon}>
-            <Ionicons name="shield-checkmark" size={18} color="#fff" />
+            <Ionicons name="shield-checkmark" size={SIZE.lg} color={COLORS.white} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: FONTS.enBold, fontSize: 13, color: COLORS.text }}>Shuru karne ke liye</Text>
-            <Text style={{ fontFamily: FONTS.enMedium, fontSize: 12, color: COLORS.textMuted, marginTop: 3, lineHeight: 18 }}>
+            <Text style={{ fontFamily: FONTS.enBold, fontSize: SIZE.sm, color: COLORS.text }}>Shuru karne ke liye</Text>
+            <Text style={styles.tipText}>
               Apne phone se kisi shak wala SMS ya WhatsApp message yahan paste karein.
               4 agents milkar usay jaanchenge.
             </Text>
@@ -132,7 +132,7 @@ export default function ScanScreen({ navigation }) {
         </View>
 
         {/* Recent */}
-        <View style={{ marginTop: 20 }}>
+        <View style={{ marginTop: SPACE.md }}>
           <SectionHeader title="Aakhri Jaanch" urduTitle="آخری جانچ" />
           <ActivityFeedItem
             tone="danger" type="BISP 8171 Fraud"
@@ -147,8 +147,8 @@ export default function ScanScreen({ navigation }) {
 function Chip({ icon, label, onPress }) {
   return (
     <Pressable onPress={onPress} style={styles.chip}>
-      <Ionicons name={icon} size={16} color={COLORS.primary} />
-      <Text style={{ fontFamily: FONTS.enBold, fontSize: 13, color: COLORS.primary }}>{label}</Text>
+      <Ionicons name={icon} size={SIZE.base} color={COLORS.primary} />
+      <Text style={{ fontFamily: FONTS.enBold, fontSize: SIZE.sm, color: COLORS.primary }}>{label}</Text>
     </Pressable>
   );
 }
@@ -161,7 +161,7 @@ function PresetChip({ label, active, onPress }) {
       pressed && { transform: [{ scale: 0.98 }] },
     ]}>
       <Text style={{
-        fontFamily: FONTS.enBold, fontSize: 13,
+        fontFamily: FONTS.enBold, fontSize: SIZE.sm,
         color: active ? COLORS.surface : COLORS.primary,
       }}>{label}</Text>
     </Pressable>
@@ -170,51 +170,55 @@ function PresetChip({ label, active, onPress }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
+  content: { padding: SPACE.lg, paddingBottom: SPACE.xl },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerIcon: {
-    width: 40, height: 40, borderRadius: 12,
+    width: 44, height: 44, borderRadius: RADIUS.icon,
     backgroundColor: COLORS.surface2,
     alignItems: 'center', justifyContent: 'center',
   },
   inputCard: {
-    marginTop: 18, backgroundColor: COLORS.surface, borderRadius: 20,
-    padding: 16, borderWidth: 1, borderColor: COLORS.border,
+    marginTop: SPACE.md, backgroundColor: COLORS.surface, borderRadius: RADIUS.card,
+    padding: SPACE.md, borderWidth: 1, borderColor: COLORS.border,
   },
-  inputLabel: { fontFamily: FONTS.enBold, fontSize: 12, color: COLORS.textMuted, letterSpacing: 0.8 },
+  inputLabel: { fontFamily: FONTS.enBold, fontSize: SIZE.xs, color: COLORS.textMuted, letterSpacing: 0.8 },
   input: {
-    marginTop: 10, minHeight: 120, padding: 12, borderRadius: 12,
+    marginTop: SPACE.sm, minHeight: 120, padding: SPACE.sm, borderRadius: RADIUS.icon,
     backgroundColor: COLORS.surface2,
     borderWidth: 1, borderColor: COLORS.primary + '33', borderStyle: 'dashed',
-    fontFamily: FONTS.enMedium, fontSize: 14, color: COLORS.text, lineHeight: 20,
+    fontFamily: FONTS.enMedium, fontSize: SIZE.base, color: COLORS.text, lineHeight: SIZE.base * 1.5,
     textAlignVertical: 'top',
   },
   chip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 99,
+    flexDirection: 'row', alignItems: 'center', gap: SPACE.sm,
+    paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm, borderRadius: RADIUS.chip,
     backgroundColor: COLORS.surface2,
     borderWidth: 1, borderColor: COLORS.primary + '25',
+    minHeight: 44, justifyContent: 'center',
   },
   presetChip: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
     paddingVertical: SPACE.sm, borderRadius: RADIUS.chip,
     backgroundColor: COLORS.surface2,
     borderWidth: 1, borderColor: COLORS.primary + '40',
+    minHeight: 44,
   },
   cta: {
-    height: 58, borderRadius: 14, flexDirection: 'row',
-    alignItems: 'center', justifyContent: 'center', gap: 10,
-    shadowColor: COLORS.primary, shadowOffset:{width:0,height:12},
-    shadowOpacity: 0.35, shadowRadius: 32, elevation: 12,
+    height: 58, borderRadius: RADIUS.btn, flexDirection: 'row',
+    alignItems: 'center', justifyContent: 'center', gap: SPACE.sm,
   },
-  ctaText: { fontFamily: FONTS.enExtra, fontSize: 16, color: '#fff', letterSpacing: 0.5 },
+  ctaText: { fontFamily: FONTS.enExtra, fontSize: SIZE.base, color: COLORS.white, letterSpacing: 0.5 },
   tip: {
-    flexDirection: 'row', gap: 12, alignItems: 'flex-start',
-    marginTop: 18, padding: 14, borderRadius: 16,
+    flexDirection: 'row', gap: SPACE.sm, alignItems: 'flex-start',
+    marginTop: SPACE.md, padding: SPACE.md, borderRadius: RADIUS.btn,
     backgroundColor: COLORS.surface2,
-    borderLeftWidth: 3, borderLeftColor: COLORS.primary,
+  },
+  tipText: {
+    fontFamily: FONTS.enMedium, fontSize: SIZE.sm, color: COLORS.textMuted,
+    marginTop: SPACE.xs, lineHeight: SIZE.sm * 1.5,
   },
   tipIcon: {
-    width: 32, height: 32, borderRadius: 10,
+    width: 32, height: 32, borderRadius: RADIUS.icon,
     backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center',
   },
 });

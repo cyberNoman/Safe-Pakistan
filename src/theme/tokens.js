@@ -40,6 +40,14 @@ export const COLORS = {
   // Transparent
   white:    '#FFFFFF',
   black:    '#000000',
+  white08:  'rgba(255,255,255,0.08)',
+  white12:  'rgba(255,255,255,0.12)',
+  white15:  'rgba(255,255,255,0.15)',
+  white20:  'rgba(255,255,255,0.2)',
+  white25:  'rgba(255,255,255,0.25)',
+  white30:  'rgba(255,255,255,0.3)',
+  white70:  'rgba(255,255,255,0.7)',
+  white80:  'rgba(255,255,255,0.8)',
   overlay:  'rgba(15,23,42,0.6)',
 };
 

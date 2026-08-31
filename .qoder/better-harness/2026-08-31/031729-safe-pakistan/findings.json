@@ -1,0 +1,276 @@
+{
+  "summary": {
+    "projectName": "safe-pakistan",
+    "locale": "en",
+    "modelId": "agent-work-loop-v4",
+    "reportContractVersion": 26,
+    "overview": "Rule and design-law assets are unusually strong, but the harness around the shipped code has drifted. Instruction docs describe an API and SDK the code no longer matches, the only declared check gate misfires in both directions, the backend's real verifiers hide behind a failing placeholder command, and an unguarded working tree holds a ~1GB model binary.",
+    "aiAgentPractice": {
+      "inspectedSurfaces": [
+        "Rules",
+        "Skills"
+      ],
+      "coverageRows": [
+        {
+          "surface": "Rules",
+          "scopes": [
+            "Project"
+          ],
+          "count": 7,
+          "paths": [
+            ".qoder/rules/00-project.md",
+            ".qoder/rules/05-screen-fit.md",
+            ".qoder/rules/10-design-law.md",
+            ".qoder/rules/20-urdu-and-copy.md",
+            ".qoder/rules/30-tasks.md",
+            ".qoder/rules/40-self-check.md",
+            "AGENTS.md"
+          ]
+        },
+        {
+          "surface": "Skills",
+          "scopes": [
+            "Global",
+            "Plugin"
+          ],
+          "count": 129,
+          "paths": [
+            "~/.agents/skills/airunway-aks-setup/SKILL.md",
+            "~/.agents/skills/appinsights-instrumentation/SKILL.md",
+            "~/.agents/skills/azure-ai/SKILL.md",
+            "~/.agents/skills/azure-aigateway/SKILL.md",
+            "~/.agents/skills/azure-cloud-migrate/SKILL.md",
+            "~/.agents/skills/azure-compliance/SKILL.md",
+            "~/.agents/skills/azure-compute/SKILL.md",
+            "~/.agents/skills/azure-cost/SKILL.md",
+            "~/.agents/skills/azure-deploy/SKILL.md",
+            "~/.agents/skills/azure-diagnostics/SKILL.md",
+            "~/.agents/skills/azure-enterprise-infra-planner/SKILL.md",
+            "~/.agents/skills/azure-hosted-copilot-sdk/SKILL.md"
+          ]
+        },
+        {
+          "surface": "Hooks",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 5,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-marketplace/alibabacloud-core/1.0.20/hooks/qoderwork-hooks.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/superpowers/5.1.0/hooks/hooks.json"
+          ]
+        },
+        {
+          "surface": "Commands",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 2,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-marketplace/context7/1.0.0/commands/docs.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/feature-dev/1.0.0/commands/feature-dev.md"
+          ]
+        },
+        {
+          "surface": "Custom Agents",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 5,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-marketplace/feature-dev/1.0.0/agents/code-architect.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/feature-dev/1.0.0/agents/code-explorer.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/feature-dev/1.0.0/agents/code-reviewer.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/code-simplifier/1.0.0/agents/code-simplifier.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/context7/1.0.0/agents/docs-researcher.md"
+          ]
+        },
+        {
+          "surface": "MCP",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 6,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-marketplace/alibabacloud-core/1.0.20/.mcp.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/chrome-devtools-mcp/1.2.0/.mcp.json",
+            "~/.qoder/plugins/cache/qoder-bundler/computer-use/.mcp.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/context7/1.0.0/.mcp.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/qoder-cloud-agents/1.1.0/mcp.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/supabase/0.1.5/.mcp.json"
+          ]
+        },
+        {
+          "surface": "Plugins",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 18,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-marketplace/alibabacloud-core/1.0.20/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/architecture-visualization/0.1.0/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-bundler/better-harness/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/chrome-devtools-mcp/1.2.0/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/cloud-agents/1.1.0/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/code-simplifier/1.0.0/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-bundler/computer-use/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/context7/1.0.0/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/design-review/0.1.0/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/feature-dev/1.0.0/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/frontend-design/1.0.0/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/hugging-face/1.0.0/.qoder-plugin/plugin.json"
+          ]
+        },
+        {
+          "surface": "Workflows",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0
+        },
+        {
+          "surface": "Memories",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0
+        }
+      ],
+      "repositorySourceRows": []
+    },
+    "assignmentSummaries": [],
+    "dimensions": [
+      {
+        "id": "task-understanding",
+        "label": "Task Understanding",
+        "score": 62,
+        "summary": "Authoritative guidance is rich and design-locked, but its backend contract, SDK version, and screen inventory contradict the shipped code.",
+        "findingRefs": [
+          "instruction-contract-mismatch"
+        ]
+      },
+      {
+        "id": "controlled-execution",
+        "label": "Controlled Execution",
+        "score": 55,
+        "summary": "App startup is documented and scripted, while the backend's runnable verifiers are reachable only through file-header comments behind a placeholder command that fails by construction.",
+        "findingRefs": [
+          "backend-verifiers-unrouted",
+          "azure-reliability-broken-anchor"
+        ]
+      },
+      {
+        "id": "change-validation",
+        "label": "Change Validation",
+        "score": 48,
+        "summary": "The declared self-check gate false-flags compliant code and misses scope-excluded hex; 101 observed edits show no captured validation command, and backend failures render as normal offline verdicts.",
+        "findingRefs": [
+          "self-check-gate-defects",
+          "silent-offline-fallback"
+        ]
+      },
+      {
+        "id": "reliable-delivery",
+        "label": "Reliable Delivery",
+        "score": 52,
+        "summary": "The retry-state acceptance route the task rule demands is not implemented, and an unguarded working tree leaves a 986MB binary and build artifacts one commit from history.",
+        "findingRefs": [
+          "unguarded-working-tree"
+        ]
+      },
+      {
+        "id": "learning-capture",
+        "label": "Learning Capture",
+        "score": 38,
+        "summary": "Bounded review complete: no repeated-procedure demand above the two-episode bar, no project Memory, and no validated reusable improvement in this window.",
+        "findingRefs": []
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "instruction-contract-mismatch",
+      "title": "Instruction docs send agents to a backend contract the shipped code does not implement",
+      "severity": "Medium",
+      "reason": "Fact: AGENTS.md (L54) and README.md (L191, the wiring snippet its task 1 points to) document `POST /analyze`, and .qoder/rules/30-tasks.md (L9) repeats it, but backend/index.js (L153) serves only `/analyze/text` and src/services/api.js (L53) posts there. AGENTS.md (L9) states Expo SDK 52 while package.json pins expo ~54.0.0 with react 19.1.0 and react-native 0.81.5, and AGENTS.md plus .qoder/rules/00-project.md map 12 screens while src/screens holds 13. Inference: an agent that follows the documented snippet wires a call the shipped backend never serves, and dependency work proceeds from the wrong SDK generation. Owner: AGENTS.md, README.md, .qoder/rules/30-tasks.md, .qoder/rules/00-project.md. Uncertainty: the deployed Cloud Run service was not probed in this read-only review; the mismatch is between the inspected docs and the inspected code.",
+      "expectedOutput": [
+        "Update the existing Document owner identified by the reviewed evidence and retain a focused validation result."
+      ],
+      "expectedArtifact": "Document",
+      "aiFixPrompt": "/better-harness fix this issue\n\nAlign the instruction owners with the shipped code. In AGENTS.md, README.md, .qoder/rules/30-tasks.md, and .qoder/rules/00-project.md: state the analyze endpoint as `POST /analyze/text` (src/services/api.js L53, backend/index.js L153), the stack as Expo ~54.0.0 per package.json, and the screen count as 13. Keep the retry-state requirement from 30-tasks.md and point it at the real route.\n\n## Validation\n\n- Re-read the four owners and confirm every stated endpoint, SDK version, and screen count matches src/services/api.js, backend/index.js, package.json, and src/screens\n- Search the repo docs for any remaining `POST /analyze` or SDK 52 line and fix it too",
+      "dimensionRefs": [
+        "task-understanding"
+      ]
+    },
+    {
+      "id": "backend-verifiers-unrouted",
+      "title": "The backend's only real verifiers are unreachable through any declared command",
+      "severity": "Medium",
+      "reason": "Fact: backend/package.json declares a single script, `test`, that echoes an error and exits 1 by construction. Two runnable verifiers exist — backend/eval.js (header: Usage: node backend/eval.js) and backend/verify-cascade.js (header: Run: node backend/verify-cascade.js) — but their invocations are documented only inside those file-header comments. backend/.env exists with no .env.example, so configuration requires reading the private .env, and AGENTS.md's verification section offers only npx expo start and the hex grep. Inference: an agent following the instruction owners cannot discover a runnable backend check, and the one declared test command deterministically fails, so backend changes ship unverified. Owner: backend/package.json scripts, AGENTS.md verification section. Uncertainty: eval.js and verify-cascade.js were not executed in this read-only review; their existence, headers, and the placeholder script are the evidence.",
+      "expectedOutput": [
+        "Update the existing Config owner identified by the reviewed evidence and retain a focused validation result."
+      ],
+      "expectedArtifact": "Config",
+      "aiFixPrompt": "/better-harness fix this issue\n\nWire the existing verifiers to the command surface. In backend/package.json, replace the placeholder test script and add scripts that run the invocations documented in the file headers: `node backend/eval.js` and `node backend/verify-cascade.js`. Add backend/.env.example listing only the variable names backend/index.js reads, with placeholder values — never copy real values from backend/.env.\n\n## Validation\n\n- Run each new npm script and confirm it produces its documented output (eval.js prints its confusion table; verify-cascade.js runs its four scenarios)\n- Confirm backend/.env.example contains no real secret values\n- Confirm `npm test` inside backend/ now routes to a real verifier instead of exiting 1",
+      "dimensionRefs": [
+        "controlled-execution"
+      ]
+    },
+    {
+      "id": "self-check-gate-defects",
+      "title": "The declared self-check gate false-flags 23 compliant lines and misses raw hex in App.js",
+      "severity": "Medium",
+      "reason": "Fact: .qoder/rules/40-self-check.md check 2 greps for Animated in src/screens and src/components and then drops every line containing the word reanimated, so compliant multi-line Reanimated imports report Animated on lines without that word — 23 hits across src/screens/VoiceScreen.js (L17), src/screens/VerdictScreen.js (L16), src/components/Overlays.js, and src/components/ThreatRing.js, all of which import Animated from react-native-reanimated. Check 1 greps only src/screens and src/components, while App.js (L36-37) carries two raw hex values (#F8F9FF, #1B4FD8) that the design law's token-only rule forbids. Inference: the gate fails compliant code, training agents to discount its output, and its scope blind spot passes real token violations, so a green run certifies nothing. Bounded context: Qoder session evidence observed 101 edit events with no later validation command in the analyzed sample, so no captured gate run contradicts this. Owner: .qoder/rules/40-self-check.md (and App.js for the hex). Uncertainty: none material — both defects reproduce deterministically from the declared commands.",
+      "expectedOutput": [
+        "Update the existing Rule owner identified by the reviewed evidence and retain a focused validation result."
+      ],
+      "expectedArtifact": "Rule",
+      "aiFixPrompt": "/better-harness fix this issue\n\nFix the declared gate and the violation it misses. In .qoder/rules/40-self-check.md, rewrite check 2 so it does not filter line-by-line: exclude files that import Animated from react-native-reanimated (the compliant pattern in VoiceScreen.js, VerdictScreen.js, Overlays.js, and ThreatRing.js) instead of excluding lines containing the word reanimated. Replace App.js's two raw hex values with the matching tokens from src/theme/tokens.js (#F8F9FF becomes COLORS.bg, #1B4FD8 becomes COLORS.primary), and extend check 1's scope to App.js so the blind spot cannot recur.\n\n## Validation\n\n- Re-run check 1 over src/screens, src/components, and App.js (excluding tokens.js) and confirm zero hits after the App.js fix\n- Re-run the rewritten check 2 and confirm zero hits on the current codebase\n- Boot `npx expo start` and confirm no red screen",
+      "dimensionRefs": [
+        "change-validation"
+      ]
+    },
+    {
+      "id": "silent-offline-fallback",
+      "title": "A failed backend verdict is indistinguishable from an offline one",
+      "severity": "Medium",
+      "reason": "Fact: src/services/api.js analyzeText() (L50-59) converts every backend failure to null via .catch(() => null), races the request against a 3-second stall, and returns the offline result whenever the backend loses, so a non-200, a timeout, a malformed response, and a stall all render exactly like a normal offline verdict. The backend's model_used field is consumed by no screen, and .qoder/rules/30-tasks.md (L20-21) requires the no-network, 5s-timeout, and non-200 cases to route to a retry state. Inference: neither an agent nor an operator can tell from the app whether the LLM cascade answered or the local rules did, backend regressions stay invisible on the core verdict path, and the documented retry state never triggers. Owner: src/services/api.js. Uncertainty: the deployed Cloud Run service was not probed; the claim comes from the inspected code path. The file header documents the behavior as intentional DEMO MODE, which bounds severity at Medium.",
+      "expectedOutput": [
+        "Update the existing Code owner identified by the reviewed evidence and retain a focused validation result."
+      ],
+      "expectedArtifact": "Code",
+      "aiFixPrompt": "/better-harness fix this issue\n\nMake degradation observable on the verdict path in the smallest owned way. Have analyzeText() in src/services/api.js report which source produced the result (backend or offline), route non-200 and timeout failures to the retry state .qoder/rules/30-tasks.md already requires instead of silently returning the offline verdict, and surface the source — plus the backend's model_used when present — wherever the verdict is displayed.\n\n## Validation\n\n- With the backend unreachable (toggle the existing DEMO_MODE.offlineOnly flag in src/services/api.js), confirm the app visibly distinguishes the offline or retry state from a normal backend verdict\n- Boot `npx expo start` and confirm no red screen\n- Run the 40-self-check greps and confirm no raw hex or non-Reanimated Animated usage was introduced",
+      "dimensionRefs": [
+        "change-validation"
+      ]
+    },
+    {
+      "id": "unguarded-working-tree",
+      "title": "A 986MB model binary and build artifacts sit one bulk commit from history",
+      "severity": "Medium",
+      "reason": "Fact: git status lists 18 untracked entries, including backend/hifazat-edge.gguf (986,048,128 bytes), the dist-verify/ export (~180k lines), and the scratch files body.json, warm.json, and test-result.json; package.json.bak is already tracked; .gitignore covers none of them. Inference: the next bulk add or commit absorbs roughly a gigabyte and six-figure artifact lines into history, impairing clone, review, and rollback, and the tracked .bak already shows unreviewed drift entering version control. Owner: .gitignore. Uncertainty: whether the model binary is meant to be versioned as a release artifact was not confirmed — the inspected state shows no ignore or external-storage boundary for it.",
+      "expectedOutput": [
+        "Update the existing Config owner identified by the reviewed evidence and retain a focused validation result."
+      ],
+      "expectedArtifact": "Config",
+      "aiFixPrompt": "/better-harness fix this issue\n\nAdd ignore boundaries in .gitignore before the next commit: dist-verify/, the scratch JSON files (backend/body.json, backend/warm.json, test-result.json), *.bak, and backend/hifazat-edge.gguf — confirm with the team before ignoring the model binary if it is an intentionally versioned release artifact. Untrack the already-committed package.json.bak while keeping the working copy (git rm --cached package.json.bak).\n\n## Validation\n\n- git status no longer lists the artifacts as untracked\n- git add -n . stages no binary or artifact paths\n- git ls-files no longer lists package.json.bak",
+      "dimensionRefs": [
+        "reliable-delivery"
+      ]
+    },
+    {
+      "id": "azure-reliability-broken-anchor",
+      "title": "The azure-reliability skill's remediation link resolves to no heading",
+      "severity": "Low",
+      "reason": "Fact: the user-scope azure-reliability SKILL.md ends its assessment phase (L135) with a fast-path link to the anchor #step-3-both-paths-multi-region-followup--ask-and-wait, but the heading at L329 reads Step 3 (both paths): Multi-region follow-up — ASK and WAIT, whose slug keeps the hyphen in follow-up, so the link target does not exist. The provider's Agent Customize lint envelope flagged the broken reference and inspection confirmed it. Inference: an agent following the skill's already-reliable fast path lands on a dead anchor and must relocate Step 3 manually, breaking the documented remediation flow. Owner: the user-scope azure-reliability skill asset. Uncertainty: none — the slug mismatch is deterministic; the skill was not executed in this review, so no claim is made about its effectiveness.",
+      "expectedOutput": [
+        "Update the existing Skill owner identified by the reviewed evidence and retain a focused validation result."
+      ],
+      "expectedArtifact": "Skill",
+      "aiFixPrompt": "/better-harness fix this issue\n\nIn the user-scope azure-reliability SKILL.md, correct the fast-path link at L135 to the slug the L329 heading actually produces (#step-3-both-paths-multi-region-follow-up--ask-and-wait), or retitle the heading to match the existing link. Editing a user-scope asset requires explicit user confirmation before the change.\n\n## Validation\n\n- The L135 link and the L329 heading slugify to the same anchor (follow-up, not followup)\n- Scan the file's remaining internal heading links and confirm none dangle",
+      "dimensionRefs": [
+        "controlled-execution"
+      ]
+    }
+  ]
+}

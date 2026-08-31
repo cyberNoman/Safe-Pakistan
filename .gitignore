@@ -1,7 +1,20 @@
 node_modules/
 .expo/
 dist/
+dist-verify/
 web-build/
 *.log
 .DS_Store
 .env
+backend/.env
+*.apk
+
+# Fine-tuned model weights (~1GB) — exceeds GitHub's 100MB file limit and is
+# not a secret but must never be in git. Distribute via Ollama/HF registry.
+backend/hifazat-edge.gguf
+
+# Dev diagnostic that prints the API-key prefix to console — never commit.
+backend/test-key.js
+
+# One-off test artifacts
+test-result.json

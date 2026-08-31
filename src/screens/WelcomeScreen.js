@@ -5,8 +5,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 
-import { COLORS, FONTS, RADIUS, gradients } from '@/theme/tokens';
-import { typo } from '@/theme/typography';
+import { COLORS, FONTS, RADIUS, SIZE, SPACE, SHADOW, gradients } from '@/theme/tokens';
+import { typo, enText } from '@/theme/typography';
 import { LanguageChip } from '@/components/Cards';
 
 const LANGS = [
@@ -19,7 +19,7 @@ export default function WelcomeScreen({ navigation }) {
   const [lang, setLang] = useState('ur');
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0B2A8C' }}>
+    <View style={{ flex: 1, backgroundColor: COLORS.primaryDk }}>
       <StatusBar barStyle="light-content" />
       <LinearGradient colors={gradients.hero.colors} start={gradients.hero.start} end={gradients.hero.end}
         style={StyleSheet.absoluteFill}
@@ -38,34 +38,34 @@ export default function WelcomeScreen({ navigation }) {
             <Svg width={110} height={130} viewBox="0 0 110 130">
               <Defs>
                 <SvgGradient id="g" x1="0" y1="0" x2="1" y2="1">
-                  <Stop offset="0" stopColor="#fff" />
-                  <Stop offset="1" stopColor="#A7F3D0" />
+                  <Stop offset="0" stopColor={COLORS.white} />
+                  <Stop offset="1" stopColor={COLORS.accent} />
                 </SvgGradient>
               </Defs>
               <Path d="M55 6 L12 22 V62 C12 92 30 112 55 122 C80 112 98 92 98 62 V22 Z" fill="url(#g)" />
-              <Path d="M38 64 L50 76 L74 50" stroke="#0B2A8C" strokeWidth="6"
+              <Path d="M38 64 L50 76 L74 50" stroke={COLORS.primaryDk} strokeWidth="6"
                 strokeLinecap="round" strokeLinejoin="round" fill="none" />
             </Svg>
           </View>
         </View>
 
         {/* Text */}
-        <View style={{ paddingHorizontal: 28, alignItems: 'center', marginTop: 12 }}>
-          <Text style={styles.heroEn}>Apna Ghar Mehfooz Karo</Text>
-          <Text style={[typo.heroUr, { color: '#fff', textAlign: 'center', marginTop: 8 }]}>
+        <View style={{ paddingHorizontal: SPACE.lg, alignItems: 'center', marginTop: SPACE.sm }}>
+          <Text style={[typo.titleEnInv, styles.heroEn]}>Apna Ghar Mehfooz Karo</Text>
+          <Text style={[typo.heroUr, { color: COLORS.white, textAlign: 'center', marginTop: SPACE.sm }]}>
             اپنا گھر محفوظ کرو
           </Text>
-          <Text style={styles.subtitle}>
+          <Text style={[typo.bodyEnInv, styles.subtitle]}>
             Pakistan's AI guardian. Scams, fake calls aur frauds se bachao —
             apne aur apne gharane ko.
           </Text>
         </View>
 
         {/* Language */}
-        <View style={{ marginTop: 'auto', marginBottom: 24 }}>
+        <View style={{ marginTop: 'auto', marginBottom: SPACE.lg }}>
           <Text style={styles.selectLabel}>SELECT LANGUAGE</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 18, gap: 8 }}
+            contentContainerStyle={{ paddingHorizontal: SPACE.md, gap: SPACE.sm }}
           >
             {LANGS.map(l => (
               <LanguageChip key={l.code} flag={l.flag} label={l.label}
@@ -75,7 +75,7 @@ export default function WelcomeScreen({ navigation }) {
         </View>
 
         {/* CTA */}
-        <View style={{ paddingHorizontal: 24, paddingBottom: 18, gap: 10 }}>
+        <View style={{ paddingHorizontal: SPACE.lg, paddingBottom: SPACE.md, gap: SPACE.sm }}>
           <Pressable onPress={() => navigation?.replace?.('Main')} style={styles.cta}>
             <Text style={styles.ctaText}>Shuru Karen</Text>
             <Ionicons name="arrow-forward" size={18} color={COLORS.primary} />
@@ -90,37 +90,32 @@ export default function WelcomeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 8 },
-  dot: { width: 6, height: 6, borderRadius: 99, backgroundColor: 'rgba(255,255,255,0.3)' },
-  dotActive: { width: 22, backgroundColor: '#fff' },
+  dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: SPACE.sm },
+  dot: { width: 6, height: 6, borderRadius: RADIUS.chip, backgroundColor: COLORS.white30 },
+  dotActive: { width: 22, backgroundColor: COLORS.white },
 
-  shieldWrap: { alignItems: 'center', marginTop: 48 },
+  shieldWrap: { alignItems: 'center', marginTop: SPACE.xxl },
   shieldOuter: {
-    width: 180, height: 180, borderRadius: 99,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+    width: 180, height: 180, borderRadius: RADIUS.chip,
+    backgroundColor: COLORS.white12,
+    borderWidth: 1, borderColor: COLORS.white20,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: COLORS.accent, shadowOpacity: 0.45, shadowRadius: 36, shadowOffset:{width:0,height:0},
+    shadowColor: COLORS.accent, shadowOpacity: 0.45, shadowRadius: 36, shadowOffset: { width: 0, height: 0 },
     elevation: 16,
   },
 
-  heroEn: { fontFamily: FONTS.enExtra, fontSize: 34, color: '#fff', textAlign: 'center', letterSpacing: -0.5, lineHeight: 38 },
-  subtitle: {
-    fontFamily: FONTS.enMedium, fontSize: 15, color: 'rgba(255,255,255,0.8)',
-    textAlign: 'center', marginTop: 14, lineHeight: 22, maxWidth: 320,
-  },
+  heroEn: { textAlign: 'center', letterSpacing: -0.5 },
+  subtitle: { textAlign: 'center', marginTop: SPACE.sm, maxWidth: 320 },
 
-  selectLabel: {
-    fontFamily: FONTS.enBold, fontSize: 11, color: 'rgba(255,255,255,0.7)',
-    letterSpacing: 1.2, textAlign: 'center', marginBottom: 10,
-  },
+  selectLabel: enText(SIZE.xs, FONTS.enBold, COLORS.white70, {
+    letterSpacing: 1.2, textAlign: 'center', marginBottom: SPACE.sm,
+  }),
 
   cta: {
-    height: 56, borderRadius: 14, backgroundColor: '#fff',
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 32, shadowOffset: { width: 0, height: 12 },
-    elevation: 12,
+    height: 56, borderRadius: RADIUS.btn, backgroundColor: COLORS.white,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACE.sm,
+    ...SHADOW.elevated,
   },
   ctaText: { fontFamily: FONTS.enExtra, fontSize: 17, color: COLORS.primary },
-  signin: { textAlign: 'center', fontFamily: FONTS.enSemibold, fontSize: 13, color: 'rgba(255,255,255,0.8)' },
+  signin: enText(SIZE.sm, FONTS.enSemibold, COLORS.white80, { textAlign: 'center' }),
 });

@@ -18,7 +18,7 @@ export function Avatar({ name = '', color = COLORS.primary, size = 44 }) {
       backgroundColor: color, alignItems: 'center', justifyContent: 'center',
     }}>
       <Text style={{
-        fontFamily: FONTS.enExtra, color: '#fff',
+        fontFamily: FONTS.enExtra, color: COLORS.white,
         fontSize: size * 0.36, letterSpacing: 0.5, includeFontPadding: false,
       }}>{initials}</Text>
     </View>
@@ -31,10 +31,10 @@ export function SectionHeader({ title, urduTitle, action, onActionPress }) {
     <View style={styles.sectionHeader}>
       <View style={{ flex: 1 }}>
         <Text style={typo.h2En}>{title}</Text>
-        {urduTitle ? <Text style={[typo.bodyUrSm, { marginTop: 2 }]}>{urduTitle}</Text> : null}
+        {urduTitle ? <Text style={[typo.bodyUrSm, { marginTop: SPACE.xs }]}>{urduTitle}</Text> : null}
       </View>
       {action ? (
-        <Pressable onPress={onActionPress} hitSlop={8}>
+        <Pressable onPress={onActionPress} hitSlop={SIZE.lg}>
           <Text style={{ fontFamily: FONTS.enSemibold, fontSize: SIZE.sm, color: COLORS.primary }}>
             {action}
           </Text>
@@ -49,11 +49,11 @@ export function StatCard({ value, label, urduLabel, color = COLORS.primary, icon
   return (
     <View style={[styles.statCard, SHADOW.card]}>
       <View style={[styles.statIcon, { backgroundColor: color + '15' }]}>
-        <Ionicons name={icon || 'shield-checkmark'} size={16} color={color} />
+        <Ionicons name={icon || 'shield-checkmark'} size={SIZE.base} color={color} />
       </View>
-      <Text style={[typo.numberEn, { fontSize: 22, lineHeight: 24, marginTop: 4 }]}>{value}</Text>
+      <Text style={[typo.numberEn, { fontSize: SIZE.xl, lineHeight: SIZE.xl * 1.1, marginTop: SPACE.xs }]}>{value}</Text>
       <Text style={{ fontFamily: FONTS.enSemibold, fontSize: SIZE.xs, color: COLORS.textMuted }}>{label}</Text>
-      {urduLabel ? <Text style={[typo.labelUr, { marginTop: 2 }]}>{urduLabel}</Text> : null}
+      {urduLabel ? <Text style={[typo.labelUr, { marginTop: SPACE.xs }]}>{urduLabel}</Text> : null}
     </View>
   );
 }
@@ -66,15 +66,15 @@ export function FamilyMemberCard({ member, onPress }) {
     ]}>
       <Avatar name={member.name} color={member.color} />
       <View style={{ flex: 1, marginHorizontal: SPACE.md }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Text style={{ fontFamily: FONTS.enBold, fontSize: 14, color: COLORS.text }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACE.sm }}>
+          <Text style={{ fontFamily: FONTS.enBold, fontSize: SIZE.base, color: COLORS.text }}>
             {member.name}
           </Text>
           <View style={styles.roleBadge}>
             <Text style={styles.roleBadgeText}>{(member.role || '').toUpperCase()}</Text>
           </View>
         </View>
-        <Text style={{ fontFamily: FONTS.enMedium, fontSize: 11, color: COLORS.textMuted, marginTop: 3 }}>
+        <Text style={{ fontFamily: FONTS.enMedium, fontSize: SIZE.xs, color: COLORS.textMuted, marginTop: SPACE.xs }}>
           Last protected: {member.lastProtected}
         </Text>
       </View>
@@ -94,16 +94,16 @@ export function ActivityFeedItem({ tone = 'danger', type, message, time }) {
   const badge = tone === 'danger' ? 'scam' : tone === 'warn' ? 'susp' : 'safe';
   return (
     <View style={[styles.activity, SHADOW.soft]}>
-      <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: dotColor }} />
-      <View style={{ flex: 1, marginHorizontal: 12 }}>
-        <Text style={{ fontFamily: FONTS.enBold, fontSize: 13, color: COLORS.text }}>{type}</Text>
+      <View style={styles.activityDot(dotColor)} />
+      <View style={styles.activityMiddle}>
+        <Text style={{ fontFamily: FONTS.enBold, fontSize: SIZE.sm, color: COLORS.text }}>{type}</Text>
         <Text numberOfLines={1} style={{
-          fontFamily: FONTS.enMedium, fontSize: 12, color: COLORS.textMuted, marginTop: 2,
+          fontFamily: FONTS.enMedium, fontSize: SIZE.sm, color: COLORS.textMuted, marginTop: SPACE.xs,
         }}>{message}</Text>
       </View>
-      <View style={{ alignItems: 'flex-end', gap: 4 }}>
+      <View style={styles.activityRight}>
         <VerdictBadge kind={badge} size="sm" />
-        <Text style={{ fontFamily: FONTS.enMedium, fontSize: 11, color: COLORS.textMuted }}>{time}</Text>
+        <Text style={{ fontFamily: FONTS.enMedium, fontSize: SIZE.xs, color: COLORS.textMuted }}>{time}</Text>
       </View>
     </View>
   );
@@ -114,13 +114,13 @@ export function LanguageChip({ flag, label, active, onPress }) {
   return (
     <Pressable onPress={onPress} style={[
       styles.langChip,
-      { backgroundColor: active ? '#fff' : 'rgba(255,255,255,0.1)',
-        borderColor: active ? 'transparent' : 'rgba(255,255,255,0.3)' }
+      { backgroundColor: active ? COLORS.white : COLORS.white + '1A',
+        borderColor: active ? 'transparent' : COLORS.white + '4D' }
     ]}>
-      <Text style={{ fontSize: 13 }}>{flag}</Text>
+      <Text style={{ fontSize: SIZE.sm }}>{flag}</Text>
       <Text style={{
-        fontFamily: FONTS.enBold, fontSize: 13,
-        color: active ? COLORS.primary : '#fff',
+        fontFamily: FONTS.enBold, fontSize: SIZE.sm,
+        color: active ? COLORS.primary : COLORS.white,
       }}>{label}</Text>
     </Pressable>
   );
@@ -131,13 +131,13 @@ export function EmptyState({ icon = 'shield-outline', title, urduTitle, cta, onC
   return (
     <View style={styles.empty}>
       <View style={styles.emptyIcon}>
-        <Ionicons name={icon} size={36} color={COLORS.primary} />
+        <Ionicons name={icon} size={SIZE.xxl} color={COLORS.primary} />
       </View>
-      <Text style={[typo.h2En, { textAlign: 'center', marginTop: 18 }]}>{title}</Text>
-      {urduTitle ? <Text style={[typo.bodyUr, { textAlign: 'center', marginTop: 6 }]}>{urduTitle}</Text> : null}
+      <Text style={[typo.h2En, { textAlign: 'center', marginTop: SPACE.md }]}>{title}</Text>
+      {urduTitle ? <Text style={[typo.bodyUr, { textAlign: 'center', marginTop: SPACE.xs }]}>{urduTitle}</Text> : null}
       {cta ? (
         <Pressable onPress={onCtaPress} style={styles.emptyCta}>
-          <Text style={{ fontFamily: FONTS.enBold, fontSize: 14, color: '#fff' }}>{cta}</Text>
+          <Text style={{ fontFamily: FONTS.enBold, fontSize: SIZE.base, color: COLORS.white }}>{cta}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -147,46 +147,50 @@ export function EmptyState({ icon = 'shield-outline', title, urduTitle, cta, onC
 const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row', alignItems: 'flex-end',
-    justifyContent: 'space-between', marginBottom: 12,
+    justifyContent: 'space-between', marginBottom: SPACE.sm,
   },
   statCard: {
     flex: 1, backgroundColor: COLORS.surface, borderRadius: RADIUS.card,
-    padding: 14, borderWidth: 1, borderColor: COLORS.border,
+    padding: SPACE.md, borderWidth: 1, borderColor: COLORS.border,
   },
   statIcon: {
-    width: 28, height: 28, borderRadius: 8,
+    width: 28, height: 28, borderRadius: RADIUS.sm,
     alignItems: 'center', justifyContent: 'center',
   },
   familyCard: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.surface, borderRadius: 16, padding: 12,
+    backgroundColor: COLORS.surface, borderRadius: RADIUS.btn, padding: SPACE.sm,
     borderWidth: 1, borderColor: COLORS.border,
   },
   roleBadge: {
-    paddingHorizontal: 6, paddingVertical: 2,
-    backgroundColor: COLORS.surface2, borderRadius: 6,
+    paddingHorizontal: SPACE.xs, paddingVertical: SPACE.xs / 2,
+    backgroundColor: COLORS.surface2, borderRadius: RADIUS.sm,
   },
   roleBadgeText: {
-    fontFamily: FONTS.enExtra, fontSize: 10,
+    fontFamily: FONTS.enExtra, fontSize: SIZE.xs,
     color: COLORS.textMuted, letterSpacing: 0.4,
   },
   activity: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.surface, borderRadius: 14, padding: 12,
+    backgroundColor: COLORS.surface, borderRadius: RADIUS.btn, padding: SPACE.sm,
     borderWidth: 1, borderColor: COLORS.border,
   },
+  activityDot: (c) => ({ width: SPACE.sm, height: SPACE.sm, borderRadius: RADIUS.chip, backgroundColor: c }),
+  activityMiddle: { flex: 1, marginHorizontal: SPACE.sm },
+  activityRight: { alignItems: 'flex-end', gap: SPACE.xs },
   langChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, paddingVertical: 8,
+    flexDirection: 'row', alignItems: 'center', gap: SPACE.sm, minHeight: 44,
+    paddingHorizontal: SPACE.sm, paddingVertical: SPACE.sm,
     borderRadius: RADIUS.chip, borderWidth: 1,
   },
-  empty: { alignItems: 'center', padding: 32 },
+  empty: { alignItems: 'center', padding: SPACE.xl },
   emptyIcon: {
-    width: 88, height: 88, borderRadius: 28,
+    width: 88, height: 88, borderRadius: RADIUS.card,
     backgroundColor: COLORS.surface2, alignItems: 'center', justifyContent: 'center',
   },
   emptyCta: {
-    marginTop: 18, paddingHorizontal: 24, paddingVertical: 12,
+    marginTop: SPACE.md, paddingHorizontal: SPACE.lg, paddingVertical: SPACE.sm,
+    minHeight: 44, justifyContent: 'center',
     borderRadius: RADIUS.btn, backgroundColor: COLORS.primary,
   },
 });

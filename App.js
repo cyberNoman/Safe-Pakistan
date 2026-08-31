@@ -15,8 +15,8 @@ import {
 } from '@expo-google-fonts/noto-nastaliq-urdu';
 
 import AppNavigator from './src/navigation/AppNavigator';
-import { AppProvider }       from './src/context/AppContext';
-import { LanguageProvider }  from './src/context/LanguageContext';
+import { AppProvider } from './src/context/AppContext';
+import { LanguageProvider } from './src/context/LanguageContext';
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -41,9 +41,11 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <AppProvider><LanguageProvider>
-        <AppNavigator />
-      </LanguageProvider></AppProvider>
+      <LanguageProvider>
+        <AppProvider>
+          <AppNavigator />
+        </AppProvider>
+      </LanguageProvider>
     </SafeAreaProvider>
   );
 }

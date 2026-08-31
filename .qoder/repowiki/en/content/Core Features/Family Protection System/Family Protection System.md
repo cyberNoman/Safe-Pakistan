@@ -13,7 +13,18 @@
 - [src/screens/FamilyConsentScreen.js](file://src/screens/FamilyConsentScreen.js)
 - [src/components/Cards.js](file://src/components/Cards.js)
 - [src/components/Indicators.js](file://src/components/Indicators.js)
+- [src/context/AppContext.js](file://src/context/AppContext.js)
+- [src/context/LanguageContext.js](file://src/context/LanguageContext.js)
+- [src/services/PushService.js](file://src/services/PushService.js)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Updated family screens to integrate with new global context system for state management
+- Added push notification service integration for guardian alerts
+- Enhanced context provider architecture with AppProvider and LanguageProvider
+- Updated FamilyScreen to use context-based scan tracking and push notifications
+- Integrated mock push notification service for guardian alert delivery
 
 ## Table of Contents
 1. Introduction
@@ -27,7 +38,7 @@
 9. Conclusion
 
 ## Introduction
-This document explains Safe Pakistan’s family protection system with a focus on:
+This document explains Safe Pakistan's family protection system with a focus on:
 - Member management and invitation workflows
 - Consent management and privacy compliance
 - Real-time alert notifications to family members
@@ -35,15 +46,16 @@ This document explains Safe Pakistan’s family protection system with a focus o
 - Data synchronization, security considerations, offline support, and external integrations
 - Typical scenarios, configuration options, and troubleshooting
 
-The system is a React Native (Expo) application with a small backend that provides threat analysis, family pairing endpoints, and guardian alert stubs. The UI includes screens for scanning content, viewing verdicts, managing family members, and handling consent for data sharing within the family group.
+The system is a React Native (Expo) application with a small backend that provides threat analysis, family pairing endpoints, and guardian alert stubs. The UI includes screens for scanning content, viewing verdicts, managing family members, and handling consent for data sharing within the family group. **Updated**: The system now uses a centralized context system for global state management and integrates a push notification service for guardian alerts.
 
 ## Project Structure
 At a high level:
-- App entry initializes fonts and mounts navigation.
+- App entry initializes fonts and mounts navigation with context providers.
 - Navigation defines tabs and routes including Family and FamilyConsent flows.
 - Screens implement user-facing features: Home dashboard, Scan input, Family member list, and Consent screen.
 - Shared components provide cards, indicators, avatars, and status pills.
 - Backend exposes endpoints for text analysis, family pairing, and guardian alerts.
+- Context providers manage global app state including scan counts and language preferences.
 
 ```mermaid
 graph TB
@@ -57,19 +69,24 @@ C --> H["Indicators.js"]
 D --> I["backend/index.js"]
 E --> I
 F --> I
+A --> J["AppContext.js"]
+A --> K["LanguageContext.js"]
+E --> L["PushService.js"]
 ```
 
 **Diagram sources**
-- [App.js:21-43](file://App.js#L21-L43)
+- [App.js:42-48](file://App.js#L42-L48)
 - [src/navigation/AppNavigator.js:80-102](file://src/navigation/AppNavigator.js#L80-L102)
 - [src/screens/HomeScreen.js:23-105](file://src/screens/HomeScreen.js#L23-L105)
 - [src/screens/ScanScreen.js:15-95](file://src/screens/ScanScreen.js#L15-L95)
-- [src/screens/FamilyScreen.js:27-86](file://src/screens/FamilyScreen.js#L27-L86)
-- [src/screens/FamilyConsentScreen.js:24-132](file://src/screens/FamilyConsentScreen.js#L24-L132)
-- [backend/index.js:63-80](file://backend/index.js#L63-L80)
+- [src/screens/FamilyScreen.js:29-104](file://src/screens/FamilyScreen.js#L29-L104)
+- [src/screens/FamilyConsentScreen.js:24-146](file://src/screens/FamilyConsentScreen.js#L24-L146)
+- [src/context/AppContext.js:10-30](file://src/context/AppContext.js#L10-L30)
+- [src/context/LanguageContext.js:47-67](file://src/context/LanguageContext.js#L47-L67)
+- [src/services/PushService.js:6-9](file://src/services/PushService.js#L6-L9)
 
 **Section sources**
-- [App.js:21-43](file://App.js#L21-L43)
+- [App.js:42-48](file://App.js#L42-L48)
 - [src/navigation/AppNavigator.js:80-102](file://src/navigation/AppNavigator.js#L80-L102)
 - [README.md:173-201](file://README.md#L173-L201)
 
@@ -77,29 +94,37 @@ F --> I
 - Family member list and add-member action are presented in the Family screen using reusable card components.
 - Consent screen clearly communicates what data will be shared and what will never be shared, with accept/decline actions.
 - Indicators and cards standardize visual states like safe/offline and verdict badges.
+- **Updated**: Global context system manages app-wide state including scan counts, blocked threats, and language preferences.
 
 Key responsibilities:
-- FamilyScreen: displays current members, overall shield status, and an “Add” action to invite new members.
+- FamilyScreen: displays current members, overall shield status, and an "Add" action to invite new members. Uses context for scan tracking and push notifications for guardian alerts.
 - Cards.js: renders FamilyMemberCard, Avatar, SectionHeader, ActivityFeedItem, and other UI primitives used across screens.
 - Indicators.js: provides VerdictBadge, StatusPill, ScamTypeChip, AgentStatusDot for consistent status representation.
+- **New**: AppContext: provides global state management for scan counts, blocked threats, and analysis status.
+- **New**: PushService: handles guardian alert notifications through a mock implementation ready for real push service integration.
 
 **Section sources**
-- [src/screens/FamilyScreen.js:27-86](file://src/screens/FamilyScreen.js#L27-L86)
-- [src/components/Cards.js:61-86](file://src/components/Cards.js#L61-L86)
+- [src/screens/FamilyScreen.js:29-104](file://src/screens/FamilyScreen.js#L29-L104)
+- [src/components/Cards.js:61-86](file://src/components/Cards.js#L61-86)
 - [src/components/Indicators.js:11-43](file://src/components/Indicators.js#L11-L43)
+- [src/context/AppContext.js:10-30](file://src/context/AppContext.js#L10-L30)
+- [src/services/PushService.js:6-9](file://src/services/PushService.js#L6-L9)
 
 ## Architecture Overview
-The family protection flow integrates UI screens with backend services:
+The family protection flow integrates UI screens with backend services and context providers:
 - Invitation and consent: deep link opens FamilyConsentScreen; acceptance navigates back to main app.
 - Family member management: FamilyScreen lists members and offers adding via pairing or invites.
 - Alerts and notifications: backend exposes /alerts/guardian to send push notifications to designated guardians.
 - Threat analysis: ScanScreen triggers analysis via backend /analyze/text; results feed into verdict and activity feeds.
+- **Updated**: Global state management: AppContext provides centralized state for scan tracking and analysis status across all screens.
 
 ```mermaid
 sequenceDiagram
 participant User as "User"
 participant App as "AppNavigator"
 participant Family as "FamilyScreen"
+participant Context as "AppContext"
+participant Push as "PushService"
 participant Consent as "FamilyConsentScreen"
 participant Backend as "backend/index.js"
 User->>Family : Open Family tab
@@ -116,18 +141,25 @@ Consent-->>App : Navigate to Main
 else Decline
 Consent-->>App : Go back
 end
+Note over Family,Prompt : Family Ko Batain Alert
+Family->>Push : alertGuardian(memberId, reason)
+Push-->>Family : {success : true, sentAt}
+Family->>Context : incrementScan()
+Context-->>Family : Update scan count
 ```
 
 **Diagram sources**
 - [src/navigation/AppNavigator.js:80-102](file://src/navigation/AppNavigator.js#L80-L102)
-- [src/screens/FamilyScreen.js:27-86](file://src/screens/FamilyScreen.js#L27-L86)
-- [src/screens/FamilyConsentScreen.js:24-132](file://src/screens/FamilyConsentScreen.js#L24-L132)
+- [src/screens/FamilyScreen.js:33-42](file://src/screens/FamilyScreen.js#L33-L42)
+- [src/screens/FamilyConsentScreen.js:31-41](file://src/screens/FamilyConsentScreen.js#L31-L41)
+- [src/context/AppContext.js:16-19](file://src/context/AppContext.js#L16-L19)
+- [src/services/PushService.js:6-9](file://src/services/PushService.js#L6-L9)
 - [backend/index.js:72-75](file://backend/index.js#L72-L75)
 
 **Section sources**
 - [src/navigation/AppNavigator.js:80-102](file://src/navigation/AppNavigator.js#L80-L102)
-- [src/screens/FamilyScreen.js:27-86](file://src/screens/FamilyScreen.js#L27-L86)
-- [src/screens/FamilyConsentScreen.js:24-132](file://src/screens/FamilyConsentScreen.js#L24-L132)
+- [src/screens/FamilyScreen.js:29-104](file://src/screens/FamilyScreen.js#L29-L104)
+- [src/screens/FamilyConsentScreen.js:24-146](file://src/screens/FamilyConsentScreen.js#L24-L146)
 - [backend/index.js:72-75](file://backend/index.js#L72-L75)
 
 ## Detailed Component Analysis
@@ -135,21 +167,26 @@ end
 ### Member Management Interface
 - Displays current family members with role labels and last protected timestamps.
 - Shows a hero banner indicating how many members are protected.
-- Provides an “Add” action to initiate invitations or pairing.
+- Provides an "Add" action to initiate invitations or pairing.
+- **Updated**: Now integrates with global context for scan tracking and push notification service for guardian alerts.
 
 Implementation highlights:
 - Uses FamilyMemberCard from Cards.js for each member row.
 - StatusPill indicates PROTECTED or OFFLINE per member.
 - Header shows total member count and family shield summary.
+- **New**: Uses `useAppContext()` hook to access scan tracking functionality.
+- **New**: Integrates `alertGuardian` from PushService for manual guardian alerts.
 
 Typical interactions:
 - Invite by generating a pairing code via backend endpoint.
 - Deep-link consent flow for invited users to accept or decline.
+- **New**: Manual guardian alerts through "Family Ko Batain" feature with push notifications.
 
 **Section sources**
-- [src/screens/FamilyScreen.js:27-86](file://src/screens/FamilyScreen.js#L27-L86)
-- [src/components/Cards.js:61-86](file://src/components/Cards.js#L61-L86)
+- [src/screens/FamilyScreen.js:29-104](file://src/screens/FamilyScreen.js#L29-L104)
+- [src/components/Cards.js:61-86](file://src/components/Cards.js#L61-86)
 - [src/components/Indicators.js:30-43](file://src/components/Indicators.js#L30-L43)
+- [src/services/PushService.js:6-9](file://src/services/PushService.js#L6-L9)
 - [backend/index.js:72-75](file://backend/index.js#L72-L75)
 
 ### Invitation Workflow and Consent Management
@@ -164,7 +201,7 @@ Privacy compliance:
 - Clear separation of shared vs non-shared data supports transparency.
 
 **Section sources**
-- [src/screens/FamilyConsentScreen.js:24-132](file://src/screens/FamilyConsentScreen.js#L24-L132)
+- [src/screens/FamilyConsentScreen.js:24-146](file://src/screens/FamilyConsentScreen.js#L24-L146)
 - [src/navigation/AppNavigator.js:94-95](file://src/navigation/AppNavigator.js#L94-L95)
 - [README.md:264-267](file://README.md#L264-L267)
 
@@ -178,30 +215,54 @@ Future enhancements could include:
 - Granular toggles for specific data categories beyond the current fixed lists.
 
 **Section sources**
-- [src/screens/FamilyScreen.js:20-25](file://src/screens/FamilyScreen.js#L20-L25)
-- [src/components/Cards.js:61-86](file://src/components/Cards.js#L61-L86)
+- [src/screens/FamilyScreen.js:22-27](file://src/screens/FamilyScreen.js#L22-L27)
+- [src/components/Cards.js:61-86](file://src/components/Cards.js#L61-86)
 
 ### Real-Time Alert Notification System
 - The backend provides /alerts/guardian to send push notifications to designated guardians.
 - While real-time delivery depends on platform push services, the endpoint logs payload and returns success with a push ID.
+- **Updated**: FamilyScreen now includes manual guardian alert functionality through the "Family Ko Batain" feature.
 
 Integration points:
 - When threats are detected during scan or monitoring, the app can call this endpoint to notify guardians.
 - The result includes a sent flag and push identifier for tracking.
+- **New**: Manual alerts can be triggered by family members through the family screen interface.
 
 **Section sources**
 - [backend/index.js:77-80](file://backend/index.js#L77-L80)
+- [src/screens/FamilyScreen.js:33-42](file://src/screens/FamilyScreen.js#L33-L42)
 
 ### Guardian Notification Service
-- The guardian notification service is represented by the /alerts/guardian endpoint.
+- The guardian notification service is represented by both the /alerts/guardian endpoint and the new PushService module.
 - It accepts alert payloads and responds with confirmation and push ID.
+- **Updated**: FamilyScreen now uses the dedicated PushService for guardian alerts with proper error handling and user feedback.
 
 Operational notes:
 - Integrate with your chosen push provider (e.g., Firebase Cloud Messaging, Expo Push Notifications) by replacing the console log with actual push dispatch logic.
 - Ensure device tokens are registered and maintained for each guardian.
+- **New**: PushService provides a clean interface for guardian alert delivery with mock implementation ready for production integration.
 
 **Section sources**
 - [backend/index.js:77-80](file://backend/index.js#L77-L80)
+- [src/services/PushService.js:6-9](file://src/services/PushService.js#L6-L9)
+- [src/screens/FamilyScreen.js:33-42](file://src/screens/FamilyScreen.js#L33-L42)
+
+### Global State Management with Context System
+- **New**: AppContext provides centralized state management for the entire application.
+- Manages scan counts, blocked threat counts, and analysis status across all screens.
+- Provides hooks for components to consume and update global state.
+- **Updated**: FamilyScreen now uses context to track user interactions and scan activities.
+
+Key features:
+- Scan counting: Tracks total number of scans performed by users.
+- Blocked threat tracking: Counts threats identified as scams or malicious.
+- Analysis status: Indicates when background analysis operations are in progress.
+- **New**: Integration with family alert system for comprehensive activity tracking.
+
+**Section sources**
+- [src/context/AppContext.js:10-30](file://src/context/AppContext.js#L10-L30)
+- [src/screens/FamilyScreen.js:30-36](file://src/screens/FamilyScreen.js#L30-L36)
+- [App.js:44-46](file://App.js#L44-L46)
 
 ### Data Synchronization Between Family Members
 - Current implementation uses local state and UI components; explicit sync logic is not present in the provided files.
@@ -209,40 +270,48 @@ Operational notes:
   - Use a secure backend database to store family membership, consent records, and shared statuses.
   - Implement conflict resolution for concurrent updates (e.g., last-write-wins with versioning).
   - Provide optimistic UI updates with rollback on failure.
+- **Updated**: Context system provides foundation for future real-time synchronization capabilities.
 
 **Section sources**
-- [src/screens/FamilyScreen.js:27-86](file://src/screens/FamilyScreen.js#L27-L86)
-- [src/screens/FamilyConsentScreen.js:24-132](file://src/screens/FamilyConsentScreen.js#L24-L132)
+- [src/screens/FamilyScreen.js:29-104](file://src/screens/FamilyScreen.js#L29-L104)
+- [src/screens/FamilyConsentScreen.js:24-146](file://src/screens/FamilyConsentScreen.js#L24-L146)
+- [src/context/AppContext.js:10-30](file://src/context/AppContext.js#L10-L30)
 
 ### Security Measures for Sensitive Family Data
 - Consent screen enforces minimal data sharing by design.
 - Backend uses environment variables for API keys and base URLs, reducing secret exposure in code.
 - HTTPS should be enforced for all network calls; ensure production endpoints use TLS.
 - Consider encrypting sensitive fields at rest and in transit where applicable.
+- **Updated**: Context system centralizes sensitive state management, reducing data leakage risks.
 
 **Section sources**
 - [backend/index.js:9-12](file://backend/index.js#L9-L12)
 - [src/screens/FamilyConsentScreen.js:16-22](file://src/screens/FamilyConsentScreen.js#L16-L22)
+- [src/context/AppContext.js:10-30](file://src/context/AppContext.js#L10-L30)
 
 ### Offline Support Capabilities
 - The app includes AsyncStorage dependency, enabling local caching of scans and settings.
 - For family data, queue pending operations when offline and sync when connectivity resumes.
 - Use background tasks to retry failed syncs and reconcile conflicts.
+- **Updated**: Context system can be extended to cache state locally for offline scenarios.
 
 **Section sources**
 - [package.json:33-33](file://package.json#L33-L33)
 - [README.md:173-184](file://README.md#L173-L184)
+- [src/context/AppContext.js:10-30](file://src/context/AppContext.js#L10-L30)
 
 ### Integration with External Notification Services
 - Replace the placeholder /alerts/guardian handler with a real push service integration.
 - Register device tokens for family members and guardians.
 - Handle token refreshes and delivery failures gracefully.
+- **Updated**: PushService provides a clean abstraction layer for push notification integration, making it easier to swap implementations.
 
 **Section sources**
 - [backend/index.js:77-80](file://backend/index.js#L77-L80)
+- [src/services/PushService.js:6-9](file://src/services/PushService.js#L6-L9)
 
 ## Dependency Analysis
-The following diagram maps key dependencies between screens, components, and backend endpoints.
+The following diagram maps key dependencies between screens, components, backend endpoints, and context providers.
 
 ```mermaid
 graph LR
@@ -256,17 +325,24 @@ Home --> Indicators["Indicators.js"]
 Scan --> Backend["backend/index.js"]
 Family --> Backend
 Consent --> Backend
+App --> Context["AppContext.js"]
+App --> LangContext["LanguageContext.js"]
+Family --> Push["PushService.js"]
+Context --> Family
 ```
 
 **Diagram sources**
-- [App.js:21-43](file://App.js#L21-L43)
+- [App.js:42-48](file://App.js#L42-L48)
 - [src/navigation/AppNavigator.js:80-102](file://src/navigation/AppNavigator.js#L80-L102)
 - [src/screens/HomeScreen.js:23-105](file://src/screens/HomeScreen.js#L23-L105)
 - [src/screens/ScanScreen.js:15-95](file://src/screens/ScanScreen.js#L15-L95)
-- [src/screens/FamilyScreen.js:27-86](file://src/screens/FamilyScreen.js#L27-L86)
-- [src/screens/FamilyConsentScreen.js:24-132](file://src/screens/FamilyConsentScreen.js#L24-L132)
-- [src/components/Cards.js:61-86](file://src/components/Cards.js#L61-L86)
+- [src/screens/FamilyScreen.js:29-104](file://src/screens/FamilyScreen.js#L29-L104)
+- [src/screens/FamilyConsentScreen.js:24-146](file://src/screens/FamilyConsentScreen.js#L24-L146)
+- [src/components/Cards.js:61-86](file://src/components/Cards.js#L61-86)
 - [src/components/Indicators.js:11-43](file://src/components/Indicators.js#L11-L43)
+- [src/context/AppContext.js:10-30](file://src/context/AppContext.js#L10-L30)
+- [src/context/LanguageContext.js:47-67](file://src/context/LanguageContext.js#L47-L67)
+- [src/services/PushService.js:6-9](file://src/services/PushService.js#L6-L9)
 - [backend/index.js:63-80](file://backend/index.js#L63-L80)
 
 **Section sources**
@@ -278,6 +354,7 @@ Consent --> Backend
 - Debounce repeated analysis requests to avoid unnecessary backend calls.
 - Use optimistic UI updates for faster perceived performance while awaiting server responses.
 - Cache recent scans and stats locally to reduce re-fetch overhead.
+- **Updated**: Context system reduces prop drilling and improves component re-render performance through centralized state management.
 
 [No sources needed since this section provides general guidance]
 
@@ -289,22 +366,30 @@ Common issues and resolutions:
 - Guardian alerts not delivered:
   - Confirm device tokens are valid and up-to-date.
   - Check backend logs for errors and integrate with a real push provider.
+  - **Updated**: Verify PushService integration and check for proper error handling in family screen.
 - Family pairing code expired:
   - Generate a new pairing code; the backend sets an expiration time.
 - Offline sync failures:
   - Queue operations locally and retry when connectivity is restored.
   - Resolve conflicts using versioned updates.
+- **New**: Context-related issues:
+  - Ensure AppProvider is properly wrapped around the app tree in App.js.
+  - Verify that components are consuming context through the useAppContext hook.
+  - Check for proper context value updates and state synchronization.
 
 **Section sources**
 - [README.md:264-267](file://README.md#L264-L267)
 - [backend/index.js:72-80](file://backend/index.js#L72-L80)
-- [src/screens/FamilyConsentScreen.js:24-132](file://src/screens/FamilyConsentScreen.js#L24-L132)
+- [src/screens/FamilyConsentScreen.js:24-146](file://src/screens/FamilyConsentScreen.js#L24-L146)
+- [src/services/PushService.js:6-9](file://src/services/PushService.js#L6-L9)
+- [src/context/AppContext.js:10-30](file://src/context/AppContext.js#L10-L30)
 
 ## Conclusion
-Safe Pakistan’s family protection system provides a clear foundation for inviting family members, managing consent, and notifying guardians about threats. The UI emphasizes transparency and simplicity, while the backend exposes essential endpoints for analysis, pairing, and alerts. To complete the system:
+Safe Pakistan's family protection system provides a clear foundation for inviting family members, managing consent, and notifying guardians about threats. The UI emphasizes transparency and simplicity, while the backend exposes essential endpoints for analysis, pairing, and alerts. **Updated**: The system now includes a robust context-based architecture for global state management and integrated push notification services for guardian alerts. To complete the system:
 - Implement full consent acceptance/declination flows with backend persistence.
-- Integrate a robust push notification service for guardian alerts.
+- Integrate a robust push notification service for guardian alerts through the PushService abstraction.
 - Add offline-first sync with conflict resolution for family data.
 - Expand permission models to support granular access control.
+- **New**: Leverage the context system for enhanced state management and cross-screen communication.
 
 [No sources needed since this section summarizes without analyzing specific files]

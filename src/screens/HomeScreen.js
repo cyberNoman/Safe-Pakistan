@@ -1,5 +1,6 @@
 /**
  * HomeScreen — dashboard with glass hero, stat row, recent activity.
+ * Fits one 390×844 viewport (no vertical scroll by design).
  *
  * Wiring expected:
  *   - useAppContext()   →   { scanCount, blockedCount, familyCount, recentScans }
@@ -17,12 +18,10 @@ import { typo } from '@/theme/typography';
 import ThreatRing from '@/components/ThreatRing';
 import { StatusPill, AgentStatusDot } from '@/components/Indicators';
 import { Avatar, StatCard, SectionHeader, ActivityFeedItem } from '@/components/Cards';
-// import { useAppContext } from '@/context/AppContext';
-// import { useLanguageContext } from '@/context/LanguageContext';
+import { useAppContext } from '@/context/AppContext';
 
 export default function HomeScreen({ navigation }) {
-  // const { scanCount = 312, blockedCount = 47, recentScans = [] } = useAppContext();
-  // const { t } = useLanguageContext();
+  const { scanCount = 312, blockedCount = 47, recentScans = [] } = useAppContext();
   const userName = 'Ahmed Khan';
 
   const recent = [
@@ -35,7 +34,7 @@ export default function HomeScreen({ navigation }) {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle="dark-content" />
       <ScrollView
-        contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         {/* Greeting */}
@@ -44,16 +43,16 @@ export default function HomeScreen({ navigation }) {
             <Text style={{ fontFamily: FONTS.enMedium, fontSize: SIZE.sm, color: COLORS.textMuted }}>
               Assalam o Alaikum
             </Text>
-            <Text style={{ fontFamily: FONTS.enExtra, fontSize: 22, color: COLORS.text, marginTop: 2 }}>
+            <Text style={{ fontFamily: FONTS.enExtra, fontSize: SIZE.xl, color: COLORS.text, marginTop: SPACE.xs }}>
               {userName}
             </Text>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACE.sm }}>
             <Pressable style={[styles.iconBtn, SHADOW.soft]} onPress={() => navigation?.navigate?.('Notifications')}>
-              <Ionicons name="notifications-outline" size={20} color={COLORS.text} />
+              <Ionicons name="notifications-outline" size={SIZE.xl} color={COLORS.text} />
               <View style={styles.dot} />
             </Pressable>
-            <Avatar name={userName} color={COLORS.primary} size={40} />
+            <Avatar name={userName} color={COLORS.primary} size={44} />
           </View>
         </View>
 
@@ -65,37 +64,37 @@ export default function HomeScreen({ navigation }) {
         >
           <View style={{ flex: 1 }}>
             <StatusPill kind="safe">PROTECTED · MEHFOOZ</StatusPill>
-            <Text style={{ fontFamily: FONTS.enExtra, fontSize: 20, color: '#fff', marginTop: 12, lineHeight: 26 }}>
+            <Text style={styles.heroTitle}>
               Aaj 3 threats block hue
             </Text>
-            <Text style={[typo.bodyUrSm, { color: 'rgba(255,255,255,0.8)', marginTop: 4 }]}>
+            <Text style={[typo.bodyUrInv, { marginTop: SPACE.xs }]}>
               آج 3 خطرات روکے گئے
             </Text>
-            <View style={{ flexDirection: 'row', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
+            <View style={{ flexDirection: 'row', gap: SPACE.sm, marginTop: SPACE.md, flexWrap: 'wrap' }}>
               <AgentStatusDot label="SMS" status="on" />
               <AgentStatusDot label="VOICE" status="on" />
               <AgentStatusDot label="LINK" status="on" />
               <AgentStatusDot label="FAMILY" status="busy" />
             </View>
           </View>
-          <ThreatRing score={98} size={92} color="#00C896" label="PROTECTED" />
+          <ThreatRing score={98} size={92} color={COLORS.accent} label="PROTECTED" />
         </LinearGradient>
 
         {/* Stats */}
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
-          <StatCard value="47"  label="Threats Blocked" color={COLORS.danger}  icon="shield" />
-          <StatCard value="312" label="Total Scans"     color={COLORS.primary} icon="scan" />
-          <StatCard value="5"   label="Family Safe"     color={COLORS.accent}  icon="people" />
+        <View style={{ flexDirection: 'row', gap: SPACE.sm, marginTop: SPACE.md }}>
+          <StatCard value={String(blockedCount)} label="Threats Blocked" color={COLORS.danger}  icon="shield" />
+          <StatCard value={String(scanCount)}    label="Total Scans"     color={COLORS.primary} icon="scan" />
+          <StatCard value="5"                    label="Family Safe"     color={COLORS.accent}  icon="people" />
         </View>
 
-        {/* Recent — Scan + Voice are tab-bar destinations, so no duplicate quick tiles */}
-        <View style={{ marginTop: 16 }}>
+        {/* Recent — Scan and Voice are tab-bar destinations, so no duplicate quick tiles */}
+        <View style={{ marginTop: SPACE.md }}>
           <SectionHeader
             title="Recent Activity" urduTitle="حالیہ سرگرمی"
             action="See All →"
             onActionPress={() => navigation?.navigate?.('Library')}
           />
-          <View style={{ gap: 8 }}>
+          <View style={{ gap: SPACE.sm }}>
             {recent.map((r, i) => <ActivityFeedItem key={i} {...r} />)}
           </View>
         </View>
@@ -104,54 +103,28 @@ export default function HomeScreen({ navigation }) {
   );
 }
 
-function QuickTile({ title, sub, icon, colors, onPress }) {
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => [
-      { flex: 1 }, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }
-    ]}>
-      <LinearGradient colors={colors} start={{x:0,y:0}} end={{x:1,y:1}}
-        style={[styles.tile, SHADOW.card]}
-      >
-        <View style={styles.tileIcon}>
-          <Ionicons name={icon} size={20} color="#fff" />
-        </View>
-        <View>
-          <Text style={{ fontFamily: FONTS.enExtra, fontSize: 14, color: '#fff' }}>{title}</Text>
-          <Text style={{ fontFamily: FONTS.enMedium, fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 1 }}>
-            {sub}
-          </Text>
-        </View>
-      </LinearGradient>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
+  content: { padding: SPACE.lg, paddingBottom: SPACE.xl },
   headerRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
+  heroTitle: {
+    fontFamily: FONTS.enExtra, fontSize: SIZE.xl, color: COLORS.white,
+    marginTop: SPACE.sm, lineHeight: SIZE.xl * 1.3,
+  },
   iconBtn: {
-    width: 40, height: 40, borderRadius: 12,
+    width: 44, height: 44, borderRadius: RADIUS.icon,
     backgroundColor: COLORS.surface,
     alignItems: 'center', justifyContent: 'center', position: 'relative',
   },
   dot: {
-    position: 'absolute', top: 8, right: 8,
-    width: 8, height: 8, borderRadius: 99,
-    backgroundColor: COLORS.danger, borderWidth: 2, borderColor: '#fff',
+    position: 'absolute', top: SPACE.sm, right: SPACE.sm,
+    width: 8, height: 8, borderRadius: RADIUS.chip,
+    backgroundColor: COLORS.danger, borderWidth: 2, borderColor: COLORS.white,
   },
   hero: {
-    flexDirection: 'row', alignItems: 'center', gap: 16,
-    borderRadius: 24, padding: 20, marginTop: 18, overflow: 'hidden',
-  },
-  tile: {
-    height: 110, borderRadius: RADIUS.card, padding: 14,
-    justifyContent: 'space-between',
-  },
-  tileIcon: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    alignItems: 'center', justifyContent: 'center',
+    flexDirection: 'row', alignItems: 'center', gap: SPACE.md,
+    borderRadius: RADIUS.card, padding: SPACE.lg, marginTop: SPACE.md, overflow: 'hidden',
   },
 });

@@ -10,7 +10,7 @@ import Animated, {
   withRepeat, withTiming, withSequence, withSpring, Easing,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONTS, RADIUS, gradients } from '@/theme/tokens';
+import { COLORS, FONTS, SIZE, RADIUS, SPACE, SHADOW, gradients } from '@/theme/tokens';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -72,7 +72,7 @@ export function LoadingShield({ percent = 60, size = 120 }) {
           end={gradients.hero.end}
           style={styles.shieldGrad}
         >
-          <Ionicons name="shield-checkmark" size={32} color="#fff" />
+          <Ionicons name="shield-checkmark" size={SIZE.xxl} color={COLORS.white} />
         </LinearGradient>
       </Animated.View>
     </View>
@@ -98,25 +98,25 @@ const styles = StyleSheet.create({
   glow: { position: 'absolute' },
   shieldCore: { position: 'absolute' },
   shieldGrad: {
-    width: 62, height: 62, borderRadius: 18,
+    width: 62, height: 62, borderRadius: RADIUS.card,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: COLORS.primary, shadowOffset:{width:0,height:8},
-    shadowOpacity: 0.35, shadowRadius: 24, elevation: 8,
+    ...SHADOW.elevated,
   },
   backdrop: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(15,23,42,0.5)',
+    backgroundColor: COLORS.overlay,
   },
   sheet: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    paddingTop: 12, paddingHorizontal: 20, paddingBottom: 32,
+    backgroundColor: COLORS.surface, borderTopLeftRadius: RADIUS.card, borderTopRightRadius: RADIUS.card,
+    paddingTop: SPACE.sm, paddingHorizontal: SPACE.lg, paddingBottom: SPACE.xl,
+    ...SHADOW.elevated,
   },
   handle: {
-    alignSelf: 'center', width: 36, height: 4, borderRadius: 99,
-    backgroundColor: '#CBD5E1', marginBottom: 12,
+    alignSelf: 'center', width: 36, height: SPACE.xs, borderRadius: RADIUS.chip,
+    backgroundColor: COLORS.border, marginBottom: SPACE.sm,
   },
   sheetTitle: {
-    fontFamily: FONTS.enExtra, fontSize: 18, color: COLORS.text, marginBottom: 12,
+    fontFamily: FONTS.enExtra, fontSize: SIZE.lg, color: COLORS.text, marginBottom: SPACE.sm,
   },
 });

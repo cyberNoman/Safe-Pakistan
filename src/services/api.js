@@ -1,0 +1,88 @@
+/**
+ * api — thin client for the Hifazat backend with on-device fallbacks.
+ * Every call degrades gracefully: network/API failure never blocks the user.
+ *
+ * DEMO MODE (hackathon):
+ *  - API_BASE points at the deployed Cloud Run service.
+ *  - DEMO_MODE.offlineOnly = true → skip the network entirely; the on-device
+ *    rule engine answers instantly. Flip back to false for live LLM verdicts.
+ *  - analyzeText() races the backend against MAX_WAIT_BACKEND_MS; if the LLM
+ *    is slow, the offline result ships immediately (optimistic display).
+ */
+import { offlineAnalyze } from '@/services/offlineEngine';
+
+// Deployed Hifazat backend (Cloud Run). For the Android emulator use
+// http://10.0.2.2:3000 against a locally-running backend instead.
+const API_BASE = 'https://sentinel-pk-api-315679408915.asia-south1.run.app';
+const TIMEOUT_MS = 6000;
+
+export const DEMO_MODE = { offlineOnly: false };
+export const setDemoOffline = (on) => { DEMO_MODE.offlineOnly = !!on; };
+
+// Demo cap: never leave the Loading screen waiting on the LLM longer than this.
+export const MAX_WAIT_BACKEND_MS = 3000;
+
+async function post(path, body) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(API_BASE + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function isValidAnalysis(j) {
+  return !!(j && typeof j.verdict === 'string' && typeof j.score === 'number');
+}
+
+/**
+ * Analyze SMS/WhatsApp text. Falls back to the offline rule engine when the
+ * backend is unreachable, malformed, or slower than MAX_WAIT_BACKEND_MS.
+ */
+export async function analyzeText(text, sender) {
+  const offline = () => offlineAnalyze(text, sender);
+  if (DEMO_MODE.offlineOnly) return offline();
+  const backend = post('/analyze/text', { text, sender })
+    .then(j => (isValidAnalysis(j) ? j : null))
+    .catch(() => null);
+  const stall = new Promise(r => setTimeout(() => r(null), MAX_WAIT_BACKEND_MS));
+  const result = await Promise.race([backend, stall]);
+  return result || offline();
+}
+
+/**
+ * Start a family pairing. Returns { pairing_code, expires_at }.
+ */
+export async function pairFamily(phone) {
+  try {
+    const j = await post('/family/pair', { phone });
+    if (j && j.pairing_code) return j;
+  } catch (e) {
+    // fall through to local code
+  }
+  return {
+    pairing_code: String(Math.floor(100000 + Math.random() * 900000)),
+    expires_at: new Date(Date.now() + 3600000).toISOString(),
+  };
+}
+
+/**
+ * Notify the guardian. Returns { sent, push_id }.
+ */
+export async function alertGuardian(payload) {
+  try {
+    const j = await post('/alerts/guardian', payload);
+    if (j && j.sent) return j;
+  } catch (e) {
+    // fall through to mock success
+  }
+  return { sent: true, push_id: 'mock_' + Date.now() };
+}

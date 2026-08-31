@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONTS, RADIUS, SHADOW } from '@/theme/tokens';
+import { COLORS, FONTS, SIZE, RADIUS, SHADOW, SPACE } from '@/theme/tokens';
 import { typo } from '@/theme/typography';
 import { LocalDBService, MOCK_SCAN_HISTORY } from '@/data/mockData';
 
@@ -52,35 +52,39 @@ export default function LibraryScreen({ navigation }) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={['top']}>
       <StatusBar barStyle="dark-content" />
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-        <Text style={{ fontFamily: FONTS.enExtra, fontSize: 24, color: COLORS.text }}>Threat Library</Text>
-        <Text style={[typo.bodyUrSm, { marginTop: 2 }]}>تمام جانچ کا ریکارڈ</Text>
+      {/* Designated scroller (artboard 10) — vertical scroll is intended */}
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Text style={styles.title}>Threat Library</Text>
+        <Text style={[typo.bodyUrSm, { marginTop: SPACE.xs }]}>تمام جانچ کا ریکارڈ</Text>
 
         <View style={[styles.search, SHADOW.soft]}>
-          <Ionicons name="search" size={18} color={COLORS.textMuted} />
-          <Text style={{ fontFamily: FONTS.enMedium, fontSize: 14, color: COLORS.textMuted }}>
+          <Ionicons name="search" size={SIZE.lg} color={COLORS.textMuted} />
+          <Text style={styles.searchText}>
             SMS, sender ya scam type dhundein...
           </Text>
         </View>
 
+        {/* Horizontal chip rail — intentionally overflowable (more chips off-screen) */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 8, marginTop: 14 }}>
+          contentContainerStyle={styles.rail}>
           {FILTERS.map(f => {
             const on = filter === f.key;
             return (
               <Pressable key={f.key} onPress={() => setFilter(f.key)} style={[
                 styles.filter,
-                on ? { backgroundColor: COLORS.primary } : { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border }
+                on
+                  ? { backgroundColor: COLORS.primary }
+                  : { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border }
               ]}>
-                {f.tone && !on && <View style={{ width: 6, height: 6, borderRadius: 99, backgroundColor: f.tone }} />}
-                <Text style={{ fontFamily: FONTS.enBold, fontSize: 13, color: on ? '#fff' : COLORS.text }}>{f.label}</Text>
-                <Text style={{ fontFamily: FONTS.enBold, fontSize: 11, color: on ? 'rgba(255,255,255,0.7)' : COLORS.textMuted }}>{f.count}</Text>
+                {f.tone && !on && <View style={styles.filterDot(f.tone)} />}
+                <Text style={{ fontFamily: FONTS.enBold, fontSize: SIZE.sm, color: on ? COLORS.white : COLORS.text }}>{f.label}</Text>
+                <Text style={{ fontFamily: FONTS.enBold, fontSize: SIZE.xs, color: on ? COLORS.white + 'B3' : COLORS.textMuted }}>{f.count}</Text>
               </Pressable>
             );
           })}
         </ScrollView>
 
-        <View style={{ marginTop: 14, gap: 8 }}>
+        <View style={styles.rows}>
           {visible.map(item => <LibraryRow key={item.id} item={item} />)}
         </View>
       </ScrollView>
@@ -93,42 +97,55 @@ function LibraryRow({ item }) {
   return (
     <View style={[styles.row, SHADOW.soft]}>
       <View style={[styles.rowBar, { backgroundColor: c }]} />
-      <View style={{ width: 6, height: 6, borderRadius: 99, backgroundColor: c, marginLeft: 4 }} />
-      <View style={{ flex: 1, marginHorizontal: 12 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <Text style={{ fontFamily: FONTS.enExtra, fontSize: 13, color: COLORS.text }}>{item.type}</Text>
-          <Text style={{ fontFamily: FONTS.enMedium, fontSize: 11, color: COLORS.textMuted }}>{item.time}</Text>
+      <View style={styles.rowDot(c)} />
+      <View style={styles.rowMiddle}>
+        <View style={styles.rowHead}>
+          <Text style={{ fontFamily: FONTS.enExtra, fontSize: SIZE.sm, color: COLORS.text }}>{item.type}</Text>
+          <Text style={{ fontFamily: FONTS.enMedium, fontSize: SIZE.xs, color: COLORS.textMuted }}>{item.time}</Text>
         </View>
-        <Text numberOfLines={2} style={{ fontFamily: FONTS.enMedium, fontSize: 12, color: COLORS.textMuted, marginTop: 3, lineHeight: 17 }}>
+        <Text numberOfLines={2} style={{ fontFamily: FONTS.enMedium, fontSize: SIZE.sm, color: COLORS.textMuted, marginTop: SPACE.xs, lineHeight: SIZE.sm * 1.3 }}>
           {item.msg}
         </Text>
       </View>
       <View style={[styles.score, { borderColor: c }]}>
-        <Text style={{ fontFamily: FONTS.enBlack, fontSize: 12, color: c, fontVariant:['tabular-nums'] }}>{item.score}</Text>
+        <Text style={{ fontFamily: FONTS.enBlack, fontSize: SIZE.sm, color: c, fontVariant: ['tabular-nums'] }}>{item.score}</Text>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  content: { padding: SPACE.lg, paddingBottom: SPACE.xl },
+  title: { fontFamily: FONTS.enExtra, fontSize: SIZE.xl, color: COLORS.text },
   search: {
-    marginTop: 14, height: 46, borderRadius: 14,
+    marginTop: SPACE.md, height: 46, borderRadius: RADIUS.btn,
     backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border,
-    paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: SPACE.md, flexDirection: 'row', alignItems: 'center', gap: SPACE.sm,
   },
+  searchText: { fontFamily: FONTS.enMedium, fontSize: SIZE.base, color: COLORS.textMuted },
+  rail: { gap: SPACE.sm, marginTop: SPACE.md },
   filter: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 99,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: SPACE.sm, minHeight: 44,
+    paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm, borderRadius: RADIUS.chip,
   },
+  filterDot: (c) => ({ width: SPACE.sm, height: SPACE.sm, borderRadius: RADIUS.chip, backgroundColor: c }),
+  rows: { marginTop: SPACE.md, gap: SPACE.sm },
   row: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.surface, borderRadius: 14, padding: 12,
+    backgroundColor: COLORS.surface, borderRadius: RADIUS.btn, padding: SPACE.sm,
     borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden',
   },
   rowBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3 },
+  rowDot: (c) => ({
+    width: SPACE.sm, height: SPACE.sm, borderRadius: RADIUS.chip,
+    backgroundColor: c, marginLeft: SPACE.xs,
+  }),
+  rowMiddle: { flex: 1, marginHorizontal: SPACE.sm },
+  rowHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   score: {
-    width: 40, height: 40, borderRadius: 99,
-    backgroundColor: '#fff', borderWidth: 2,
+    width: 40, height: 40, borderRadius: RADIUS.chip,
+    backgroundColor: COLORS.surface, borderWidth: 2,
     alignItems: 'center', justifyContent: 'center',
   },
 });

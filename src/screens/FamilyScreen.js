@@ -1,29 +1,25 @@
 /**
- * Remaining screens — FamilyScreen, LibraryScreen, AnalyticsScreen, ChatScreen, WelcomeScreen.
- * Each is a complete, self-contained screen. They follow the exact same patterns as
- * HomeScreen / VerdictScreen / VoiceScreen — see those files for the deepest examples
- * of animation, gradient, and Urdu/RTL handling.
+ * FamilyScreen — Family Shield roster.
+ * Roster is exactly 3 (05-screen-fit): header chip "3 members", hero "2 of 3
+ * mehfooz hain", 3 avatars, 3 list rows — all four numbers stay in sync.
+ * Fits one 390×844 viewport (no vertical scroll by design).
  */
-
-// ════════════════════════════════════════════════════════════════
-// handoff/src/screens/FamilyScreen.js
-// ════════════════════════════════════════════════════════════════
 import React from 'react';
 import { View, Text, ScrollView, Pressable, Alert, StyleSheet, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONTS, RADIUS, SHADOW, gradients } from '@/theme/tokens';
+import { COLORS, FONTS, SIZE, RADIUS, SPACE, SHADOW, gradients } from '@/theme/tokens';
 import { typo } from '@/theme/typography';
 import { Avatar, SectionHeader, FamilyMemberCard } from '@/components/Cards';
 import { alertGuardian } from '@/services/PushService';
+import { FamilyService } from '@/services/FamilyService';
 import { useAppContext } from '@/context/AppContext';
 
 const MEMBERS = [
-  { id:'1', name:'Saima Khan',  role:'Ammi',  status:'safe', lastProtected:'2 min ago',  color:'#EC4899' },
+  { id:'1', name:'Saima Khan',  role:'Ammi',  status:'safe', lastProtected:'2 min ago',  color: COLORS.accentDk },
   { id:'2', name:'Bilal Ahmed', role:'Abu',   status:'safe', lastProtected:'12 min ago', color: COLORS.primary },
-  { id:'3', name:'Hina Khan',   role:'Behan', status:'safe', lastProtected:'1 hour ago', color:'#8B5CF6' },
-  { id:'4', name:'Usman Khan',  role:'Bhai',  status:'off',  lastProtected:'Yesterday',  color:'#F59E0B' },
+  { id:'3', name:'Usman Khan',  role:'Bhai',  status:'off',  lastProtected:'Yesterday',  color: COLORS.warning },
 ];
 
 export default function FamilyScreen({ navigation }) {
@@ -41,59 +37,67 @@ export default function FamilyScreen({ navigation }) {
     );
   };
 
+  // "Ghar Wala Jodein" — generate an invite code to share with the member.
+  const addMember = () => {
+    const code = FamilyService.generateCode();
+    Alert.alert(
+      'Invite Code',
+      `Share this code with family member: ${code}`,
+      [{ text: 'Theek hai' }]
+    );
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={['top']}>
       <StatusBar barStyle="dark-content" />
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View>
-            <Text style={{ fontFamily: FONTS.enExtra, fontSize: 24, color: COLORS.text }}>Apna Gharana</Text>
-            <Text style={[typo.bodyUrSm, { marginTop: 2 }]}>اپنا گھرانہ</Text>
+            <Text style={{ fontFamily: FONTS.enExtra, fontSize: SIZE.xl, color: COLORS.text }}>Apna Gharana</Text>
+            <Text style={[typo.bodyUrSm, { marginTop: SPACE.xs }]}>اپنا گھرانہ</Text>
           </View>
-          <View style={{ paddingHorizontal: 12, paddingVertical: 6,
-            borderRadius: 99, backgroundColor: COLORS.surface2 }}>
-            <Text style={{ fontFamily: FONTS.enExtra, fontSize: 12, color: COLORS.primary }}>
-              {MEMBERS.length + 1} members
+          <View style={styles.countChip}>
+            <Text style={{ fontFamily: FONTS.enExtra, fontSize: SIZE.sm, color: COLORS.primary }}>
+              {MEMBERS.length} members
             </Text>
           </View>
         </View>
 
         {/* Hero */}
         <LinearGradient colors={gradients.hero.colors} start={gradients.hero.start} end={gradients.hero.end}
-          style={[{ borderRadius: 20, padding: 16, marginTop: 16, overflow: 'hidden' }, SHADOW.elevated]}
-        >
-          <Text style={{ fontFamily: FONTS.enExtra, fontSize: 11, color: 'rgba(255,255,255,0.7)', letterSpacing: 1.2 }}>
+          style={[styles.hero, SHADOW.elevated]}>
+          <Text style={styles.heroLabel}>
             FAMILY SHIELD
           </Text>
-          <Text style={{ fontFamily: FONTS.enExtra, fontSize: 22, color: '#fff', marginTop: 6 }}>
+          <Text style={styles.heroTitle}>
             2 of 3 mehfooz hain
           </Text>
-          <Text style={[typo.bodyUrInv, { marginTop: 2 }]}>دو افراد محفوظ ہیں</Text>
-          <View style={{ flexDirection: 'row', marginTop: 14 }}>
+          <Text style={[typo.bodyUrInv, { marginTop: SPACE.xs }]}>دو افراد محفوظ ہیں</Text>
+          <View style={{ flexDirection: 'row', marginTop: SPACE.md }}>
             {MEMBERS.map((m, i) => (
-              <View key={m.id} style={{ marginLeft: i ? -10 : 0,
-                borderWidth: 2, borderColor: '#fff', borderRadius: 99 }}>
+              <View key={m.id} style={{ marginLeft: i ? -SPACE.sm : 0,
+                borderWidth: 2, borderColor: COLORS.white, borderRadius: RADIUS.chip }}>
                 <Avatar name={m.name} color={m.color} size={32} />
               </View>
             ))}
           </View>
         </LinearGradient>
 
-        <View style={{ marginTop: 20 }}>
+        <View style={{ marginTop: SPACE.md }}>
           <SectionHeader title="Members" urduTitle="ارکان" />
-          <View style={{ gap: 8 }}>
+          <View style={{ gap: SPACE.sm }}>
             {MEMBERS.map(m => (
               <FamilyMemberCard key={m.id} member={m} onPress={() => notifyFamily(m)} />
             ))}
-            <Pressable style={styles.addCard}>
+            <Pressable style={styles.addCard} onPress={addMember}>
               <View style={styles.addIcon}>
-                <Ionicons name="add" size={22} color={COLORS.primary} />
+                <Ionicons name="add" size={SIZE.xl} color={COLORS.primary} />
               </View>
               <View>
-                <Text style={{ fontFamily: FONTS.enBold, fontSize: 14, color: COLORS.primary }}>
+                <Text style={{ fontFamily: FONTS.enBold, fontSize: SIZE.base, color: COLORS.primary }}>
                   Ghar Wala Jodein
                 </Text>
-                <Text style={[typo.bodyUrSm, { marginTop: 2 }]}>گھر والے کو شامل کریں</Text>
+                <Text style={[typo.bodyUrSm, { marginTop: SPACE.xs }]}>گھر والے کو شامل کریں</Text>
               </View>
             </Pressable>
           </View>
@@ -104,14 +108,26 @@ export default function FamilyScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  content: { padding: SPACE.lg, paddingBottom: SPACE.xl },
+  countChip: {
+    paddingHorizontal: SPACE.sm, paddingVertical: SPACE.sm,
+    borderRadius: RADIUS.chip, backgroundColor: COLORS.surface2,
+  },
+  hero: { borderRadius: RADIUS.card, padding: SPACE.md, marginTop: SPACE.md, overflow: 'hidden' },
+  heroLabel: {
+    fontFamily: FONTS.enExtra, fontSize: SIZE.xs, color: COLORS.white + 'B3', letterSpacing: 1.2,
+  },
+  heroTitle: {
+    fontFamily: FONTS.enExtra, fontSize: SIZE.xl, color: COLORS.white, marginTop: SPACE.xs,
+  },
   addCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    padding: 14, borderRadius: 16,
+    flexDirection: 'row', alignItems: 'center', gap: SPACE.sm,
+    padding: SPACE.md, borderRadius: RADIUS.btn,
     borderWidth: 1.5, borderColor: COLORS.primary + '50',
-    borderStyle: 'dashed', backgroundColor: '#F8FAFF',
+    borderStyle: 'dashed', backgroundColor: COLORS.bg,
   },
   addIcon: {
-    width: 44, height: 44, borderRadius: 99,
+    width: 44, height: 44, borderRadius: RADIUS.chip,
     backgroundColor: COLORS.surface2,
     alignItems: 'center', justifyContent: 'center',
   },
