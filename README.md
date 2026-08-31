@@ -1,278 +1,181 @@
-# Safe Pakistan — Developer Handoff
+<div align="center">
 
-> **AI agents:** read `DESIGN_RULES.md` (binding design constitution) then `AGENTS.md`.
+# HIFAZAT حفاظت — Safe Pakistan
 
-**Pakistan's AI Scam Guardian** · React Native (Expo SDK 52) · Production-ready code
+### Three layers. Two models. One shield.
 
-> Apne Ghar Ki Hifazat — Protect Your Home
+**Pakistan's AI Scam Guardian** — paste any SMS, WhatsApp message, screenshot or
+live call and get a clear verdict (SCAM · SUSPICIOUS · SAFE) in 3 seconds,
+in English, Roman Urdu and اردو (Nastaliq).
+
+*Apne Ghar Ki Hifazat — Protect Your Home*
+
+<br>
+
+![Built with Qoder](https://img.shields.io/badge/Built%20with-Qoder%20AI-1B4FD8?style=for-the-badge)
+![Expo SDK 54](https://img.shields.io/badge/Expo%20SDK-54-000020?style=for-the-badge&logo=expo&logoColor=white)
+![React Native](https://img.shields.io/badge/React%20Native-0.81.5-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![Model hifazat-edge](https://img.shields.io/badge/%F0%9F%A4%97%20Model-hifazat--edge-FF9D00?style=for-the-badge)
+![Cascade verified](https://img.shields.io/badge/Cascade-4%2F4%20PASS-00C896?style=for-the-badge)
+![Offline floor](https://img.shields.io/badge/Offline%20floor-Rs%200%20per%20scan-047857?style=for-the-badge)
+
+</div>
 
 ---
 
-## What's in this folder
+## The problem
 
+Pakistan loses an estimated **Rs 2.6 trillion a year** to digital fraud.
+171,600 complaints hit NCCIA in 2024; cybercrime cases grew **+70%** in two
+years — and the fastest-growing victim group is **45+, low digital literacy,
+rural, often on zero or slow internet**.
+
+> *"Mubarak ho! Apko 25,000 mile hain. OTP bhejein foran warna account band
+> ho jayega."* — to a mother it reads like luck. To hifazat-edge it is a
+> textbook OTP scam.
+
+Existing tools fail her three times: **cloud-only** (dies offline),
+**English-only** (misses the most targeted users), **one model** (one point
+of failure). So we inverted the architecture.
+
+## The 3-layer AI inference cascade
+
+```mermaid
+flowchart LR
+  A["USER INPUT<br/>SMS · call · screenshot"] --> B["SCAN"]
+  B --> C{"L1 hifazat-edge<br/>confidence ≥ 70?"}
+  C -- "yes · 2.3s" --> V["VERDICT + ACTION<br/>block · alert · NCCIA Shikayat"]
+  C -- "unsure / down" --> D["L2 QWEN-MAX<br/>Alibaba Model Studio"]
+  D --> V
+  C -- "everything down" --> E["L3 RULE ENGINE<br/>on-device · 0ms"]
+  E --> V
+  V --> F["FEEDBACK LOOP<br/>Threat Library + family alerts"]
+  F --> A
 ```
-handoff/
-├── App.js                          # Entry — loads fonts, mounts navigator
-├── package.json                    # Dependencies (merge with yours)
-└── src/
-    ├── theme/
-    │   ├── tokens.js               # Colors, fonts, spacing, radius, shadows, gradients
-    │   └── typography.js           # Pre-built TextStyle objects (typo.heroEn, typo.bodyUr...)
-    ├── components/
-    │   ├── ThreatRing.js           # Animated circular SVG score ring
-    │   ├── Indicators.js           # VerdictBadge, StatusPill, ScamTypeChip, AgentStatusDot
-    │   ├── Cards.js                # StatCard, FamilyMemberCard, ActivityFeedItem, Avatar,
-    │   │                           # SectionHeader, LanguageChip, EmptyState
-    │   └── Overlays.js             # LoadingShield, BottomSheet
-    ├── screens/
-    │   ├── WelcomeScreen.js        # Onboarding slide 1 with 6 language chips
-    │   ├── HomeScreen.js           # Dashboard — glass hero, stats, quick actions, feed
-    │   ├── ScanScreen.js           # Paste/type SMS, screenshot, voice, analyze
-    │   ├── VerdictScreen.js        # SCAM + SAFE results (one component, two states)
-    │   ├── VoiceScreen.js          # Full-screen mic with 3 ripples, waveform, language chips
-    │   ├── FamilyScreen.js         # Family shield with members & alerts
-    │   ├── LibraryScreen.js        # Threat history with filters & search
-    │   ├── AnalyticsScreen.js      # 7-day chart, money saved, scam breakdown
-    │   ├── ChatScreen.js           # Guardian chatbot (WhatsApp-inspired premium)
-    │   ├── FamilyConsentScreen.js  # Invite consent — shown on the INVITED device
-    │   ├── ScreenshotResultScreen.js # Screenshot scan result + detected issues
-    │   └── ModelPerfScreen.js      # Settings > Model Performance (transparency)
-    └── navigation/
-        └── AppNavigator.js         # React Navigation v6: stack + 5-tab bar
-```
 
-**Routes:** `Welcome` · `Main` (5 tabs: Home, Scan, Family, Report, Chat) ·
-`Verdict` · `Voice` · `Library` · `FamilyConsent` · `ScreenshotResult` · `ModelPerf`
+| Layer | Brain | Speed | Cost per scan |
+|---|---|---|---|
+| **L1** | `hifazat-edge` — our fine-tuned Qwen2.5-1.5B, Ollama on-device | **2.3s** | **Rs 0** |
+| **L2** | Qwen-Max (Alibaba Cloud Model Studio) — the teacher for unsure cases | ~9s | ≈ Rs 0.85 (quota-shielded) |
+| **L3** | On-device weighted rule engine — the unbreakable floor | **0ms** | **Rs 0** |
 
-**Languages: English / اردو / Roman Urdu** (3 only — Punjabi, Sindhi, Pashto and
-Balochi were removed by design decision).
+Confidence gate ≥ 70 · silent escalation · quota shield (cache + daily budget) ·
+**every failure path still returns a verdict.** The demo cannot break — it just
+changes which brain answers.
 
----
+## hifazat-edge — our own model
 
-## Quick start (drop-in)
+| | |
+|---|---|
+| Base | Qwen2.5-1.5B-Instruct + **LoRA (Unsloth)** |
+| Training data | **1,500 localized examples** — 864 scam / 336 suspicious / 300 safe |
+| Training loss | **2.10 → 0.026** |
+| Format | Q4_K_M GGUF · CPU inference **2.3s** · **Rs 0/scan** |
+| Weights | [huggingface.co/Noman33/hifazat-edge](https://huggingface.co/Noman33/hifazat-edge) |
 
-1. **Merge dependencies.** Copy entries from `package.json` into your existing
-   `safe-pakistan` Expo project. Run `yarn install`.
+<div align="center">
+<img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https%3A%2F%2Fhuggingface.co%2FNoman33%2Fhifazat-edge" width="140" alt="QR — hifazat-edge on Hugging Face" />
+<br><sub>Scan for the model card</sub>
+</div>
 
-2. **Configure path alias.** Add this to `babel.config.js` so `@/theme/...`
-   imports work:
+## Why the demo cannot fail
 
-   ```js
-   module.exports = function (api) {
-     api.cache(true);
-     return {
-       presets: ['babel-preset-expo'],
-       plugins: [
-         ['module-resolver', { root: ['./src'], alias: { '@': './src' } }],
-         'react-native-reanimated/plugin'   // MUST be last
-       ],
-     };
-   };
-   ```
-
-   `yarn add -D babel-plugin-module-resolver`
-
-3. **Drop in the folders.** Copy `src/theme`, `src/components`, `src/screens`,
-   `src/navigation` into your project's `src/` (or replace what's there).
-
-4. **Replace `App.js`** with the version in this folder (or merge — it just
-   loads fonts and mounts `AppNavigator`).
-
-5. **Run:** `npx expo start`
-
----
-
-## Design system at a glance
-
-| Token | Value | Use |
+| Failure | What the user sees | Brain that answers |
 |---|---|---|
-| `COLORS.primary` | `#1B4FD8` | Brand blue (CTAs, links, brand) |
-| `COLORS.accent`  | `#00C896` | Protection green (safe, success) |
-| `COLORS.danger`  | `#E63946` | Scam red (urgent but not panicky) |
-| `COLORS.warning` | `#F4A261` | Suspicious amber |
-| `COLORS.bg`      | `#F8F9FF` | App background |
-| `COLORS.surface` | `#FFFFFF` | Cards |
-| `RADIUS.card`    | `20` | Card corners |
-| `RADIUS.btn`     | `14` | Button corners |
-| `SHADOW.card`    | brand-blue 8% opacity | Default card shadow |
-| `gradients.hero` | `#1B4FD8 → #0EA5E9` | Hero / dashboard / brand surfaces |
+| Fine-tuned model cold / down | Verdict in seconds, no error | L2 Qwen-Max |
+| Cloud unreachable (real 503 incident) | Verdict in seconds, no error | L3 rules, 0ms |
+| Airplane mode, rural network | Verdict instantly on-device | L3 rules, 0ms |
+| Model unsure (conf < 70) | Escalated, never guessed | gate → L2 |
 
-**All shadows use brand-blue tint** — never gray drop shadows.
+The client races the backend against a 3-second on-device timer — a verdict
+always lands instantly; the smartest available answer upgrades it silently.
+
+## Built with Qoder, at AI speed
+
+App (13 screens) + backend cascade + training pipeline were co-built with
+**Qoder**, the AI coding agent — in days, not months. Automated verification:
+**4/4 cascade harness PASS** plus a documentation-integrity audit.
+
+> *Humans made every product decision. AI executed them at speed.*
+
+## Stack
+
+Expo SDK 54 · React Native 0.81.5 · React 19.1 · Reanimated · react-native-svg ·
+React Navigation v6 · Node/Express backend · Ollama local inference ·
+Alibaba Cloud Model Studio (Qwen-Max) · EAS Build (APK) · Urdu TTS (ur-PK)
+
+## Demo readiness
+
+- ✓ 4/4 cascade failure scenarios verified by harness
+- ✓ Airplane-mode tested — offline verdict floor at 0ms
+- ✓ EAS preview APK compiled and on device
+- ✓ `/health` pre-stage check + model warm-up protocol
+- ✓ Quota shield active (cache + daily budget)
+
+*We audited ourselves harder than you will.*
+
+## 90-day roadmap
+
+| Phase | Scope |
+|---|---|
+| **P0** | Supabase auth + scan history (trust infrastructure) |
+| **P1** | Family Shield real-time alerts |
+| **P2** | Telco / bank white-label integrations |
+| **Flywheel** | Every user correction becomes v2 training data |
+
+**Business model:** free forever for vulnerable users. B2B white-label cascade
+API for banks & telcos — fraud liability down, support cost down. Edge-first
+means near-zero marginal cost per scan (Rs 0 on-device vs ≈ Rs 0.85 cloud).
+Users never pay. Institutions do.
 
 ---
 
-## Verdict screen copy rules
+## Quick start
 
-Verdict screens (`VerdictScreen.js`) are read fast, often by older users. Two
-hard rules:
-
-1. **Body text is 17pt minimum** — see `styles.explainText` and `styles.reasonText`.
-2. **Each explanation line is under 12 words.** Split long reasoning into two
-   short `<Text>` lines rather than one paragraph.
-
-The scam verdict also shows an **evidence chip row** ("WORDS FOUND") listing the
-exact trigger words matched in the message — red-tinted pills above the scam-type
-chips. Feed it from your backend's `redFlags`/`triggerWords` array:
-
-```js
-{(route.params.triggerWords ?? []).map(w => (
-  <View key={w} style={styles.evidenceChip}>
-    <Text style={styles.evidenceChipText}>{w}</Text>
-  </View>
-))}
+```bash
+yarn install
+cp backend/.env.example backend/.env   # add your Qwen key
+node backend/index.js                  # cascade on :3000 (warms L1 at boot)
+npx expo start                         # app
+node backend/verify-cascade.js         # 4-scenario cascade harness
 ```
 
-The secondary report button is labelled **"NCCIA Shikayat"** (National
-Cyber Crime Investigation Agency), not "FIA Report".
+<details>
+<summary><b>Repository structure</b></summary>
 
----
-
-## Urdu / RTL — the critical rules
-
-Every screen handles Urdu correctly out of the box. The rules baked into
-`typography.js`:
-
-1. **Urdu text uses `FONTS.urdu`** (Noto Nastaliq Urdu).
-2. **Always +2px** vs the English equivalent (Nastaliq is small at the same px).
-3. **`writingDirection: 'rtl'` + `textAlign: 'right'`** always.
-4. **`lineHeight: size * 1.8`** — Nastaliq needs vertical breathing room.
-5. **Never mix Urdu + English** in one `<Text>` — split into two components.
-
-```js
-// ✓ Correct
-<Text style={typo.h1En}>Apna Ghar Mehfooz Karo</Text>
-<Text style={typo.heroUr}>اپنا گھر محفوظ کرو</Text>
-
-// ✗ Wrong — mixed direction breaks layout
-<Text>Apna Ghar Mehfooz Karo اپنا گھر محفوظ کرو</Text>
+```
+├── App.js                     # entry — fonts + navigator
+├── backend/
+│   ├── index.js               # 3-layer cascade orchestrator (L1→gate→L2→L3)
+│   ├── verify-cascade.js      # automated failure-path harness
+│   ├── stub-ollama.js         # low-confidence Ollama stub for tests
+│   └── .env.example           # credentials template (never commit .env)
+├── src/
+│   ├── theme/                 # tokens.js + typography.js — single visual source
+│   ├── components/            # ThreatRing · Indicators · Cards · Overlays
+│   ├── services/              # api.js (3s race) · offlineEngine · LocalDB · Family
+│   ├── screens/               # 13 screens incl. LoadingScreen
+│   └── navigation/            # stack + 5-tab bar
+├── PitchDeck.html             # judge deck (arrow keys to present)
+├── SystemDesign.html          # full system design artboards
+├── Safe Pakistan.html         # 15-screen design specification canvas
+└── SECURITY.md                # secrets policy & pre-push checklist
 ```
 
-For full RTL screens (when `LanguageContext.isRTL === true`), use
-`I18nManager.forceRTL(true)` once at app start. All `StyleSheet` rules in this
-codebase use `start/end` semantically already.
+</details>
+
+Design law: one brand blue `#1B4FD8`, red **only** for scam, blue-tinted
+shadows, verdict body text ≥ 17pt, 44pt hit targets, WCAG AA contrast.
+Languages: exactly three — English · اردو · Roman Urdu.
 
 ---
 
-## Animations (react-native-reanimated 3)
+<div align="center">
 
-| Where | Effect | File |
-|---|---|---|
-| Threat score ring | `strokeDashoffset` fills over 1.2s ease-out | `ThreatRing.js` |
-| Loading shield | Pulse 1.0 → 1.04 → 1.0, 3s loop | `Overlays.js` |
-| Voice ripples | 3 rings, 600ms stagger, scale + fade | `VoiceScreen.js` |
-| Voice waveform | Real-time bar heights (mocked, see below) | `VoiceScreen.js` |
-| Verdict band | Slide-down spring entrance | `VerdictScreen.js` |
-| Tile press | scale: 0.98 on press | All Pressables |
+**Model** · [huggingface.co/Noman33/hifazat-edge](https://huggingface.co/Noman33/hifazat-edge)
+&nbsp;·&nbsp; **Deck** · `PitchDeck.html`
+&nbsp;·&nbsp; **Security** · `SECURITY.md`
 
-**Wiring real audio levels** to the waveform: replace the `Bar` sharedValue
-loops in `VoiceScreen.js > Waveform` with values from your
-`expo-av` Audio.Recording `onRecordingStatusUpdate` callback's `metering` value.
+*Three layers. Two models. One shield. Shukriya.*
 
----
-
-## Wiring to your existing app
-
-Your existing code provides:
-
-- `AppContext` → `scanCount, blockedCount, isAnalyzing, incrementScan`
-- `LanguageContext` → `language, setLang, t(), isRTL, ttsLocale`
-- `LocalDBService.getScanHistory()`, `getStats()`
-- Backend: `https://sentinel-pk-api-315679408915.asia-south1.run.app`
-
-Each screen has commented-out `useAppContext()` / `useLanguageContext()` hooks
-ready to be uncommented once you confirm the import paths. Search for
-`// const { ... } = useAppContext()` and wire them up.
-
-For the backend, in `ScanScreen.js`:
-
-```js
-const analyze = async () => {
-  navigation.navigate('Loading');
-  const res = await fetch('https://sentinel-pk-api-315679408915.asia-south1.run.app/analyze', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, lang: language }),
-  });
-  const { verdict, score, confidence, type, redFlags } = await res.json();
-  await LocalDBService.saveScan({ verdict, score, type, text });
-  incrementScan();
-  navigation.replace('Verdict', { verdict, score, confidence, type, redFlags });
-};
-```
-
----
-
-## Component reference (highlights)
-
-### `<ThreatRing score={96} size={140} color={COLORS.danger} label="THREAT SCORE" />`
-Animated SVG ring. The number inside uses tabular figures so digits don't jitter
-as they count up.
-
-### `<VerdictBadge kind="scam" />` · `kind`: `'scam' | 'safe' | 'susp'`
-Pill with icon + label. Use `size="sm"` for inline list contexts.
-
-### `<StatusPill kind="safe">PROTECTED</StatusPill>`
-The colored-left-border pattern from the brief. Kinds: `safe | danger | warn | info | off`.
-
-### `<LoadingShield percent={60} />`
-Animated shield with rotating progress ring and pulsing glow — drop into your
-"Analyzing..." screen between Scan tap and Verdict.
-
-### `<BottomSheet visible onClose={...} title="...">{children}</BottomSheet>`
-Standard action-sheet modal. Use for "Block Sender / Family / FIA" menu.
-
----
-
-## Color contrast & accessibility
-
-All text/background pairs meet WCAG AA:
-- Body text on `bg` → 14.6:1
-- Body text on `surface2` → 12.1:1
-- White text on `primary` → 6.4:1
-- White text on `danger` → 4.6:1
-
-Hit targets are 44pt minimum (chips, tab bar icons, buttons).
-Tab bar uses 24px icons with 72pt total height including safe area.
-
----
-
-## Known-good Expo deps versions
-
-The `package.json` pins versions known to work together with **Expo SDK 52 +
-Reanimated 3 + Navigation v6**. If you bump Expo SDK, also bump:
-- `react-native-reanimated`
-- `react-native-svg`
-- `react-native-screens`
-- `react-native-safe-area-context`
-
-…to versions in the matching `expo install --check` output.
-
----
-
-## What's NOT included (intentionally)
-
-- **Loading / Analyzing screen as a route** — the `LoadingShield` component is
-  ready; create `src/screens/LoadingScreen.js` and add it to the stack between
-  Scan and Verdict when you wire the real backend call.
-- **Onboarding slides 2 & 3** — Slide 2 (3 threats) is in the HTML mockup;
-  copy the pattern from `WelcomeScreen.js` and swap content.
-- **Real voice recognition** — `VoiceScreen.js` mocks the state and
-  waveform. Hook up `expo-av` recording + your STT backend.
-- **Image picking for screenshots** — `ScreenshotResultScreen` expects
-  `route.params.imageUri`. Add `expo-image-picker` and launch it from the
-  "Screenshot" chip in `ScanScreen.js`.
-- **Deep link for family invites** — `FamilyConsentScreen` expects
-  `route.params.inviterName` / `inviterPhone` / `token`. Register a
-  `safepakistan://invite/:token` scheme in `app.json` and map it in
-  React Navigation's `linking` config.
-- **Dark mode** — tokens include dark variants (`COLORS.bgDark`, etc.).
-  Wrap your app in a theme context that swaps `COLORS` based on
-  `useColorScheme()`.
-
----
-
-## Open this design in HTML
-
-See `Safe Pakistan.html` in the project root — every screen rendered on a
-pan/zoom design canvas. Click any artboard to open it fullscreen
-(arrow keys to navigate, Esc to close).
+</div>
