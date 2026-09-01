@@ -1,2 +1,0 @@
-- The frontend uses `@/theme/...` path aliases resolved by `babel-plugin-module-resolver` so all screens import tokens and components through a single `src/` tree.
-- UI text is kept language-neutral by splitting English and Urdu into separate `<Text>` nodes to avoid mixed RTL/LTR direction within one element.

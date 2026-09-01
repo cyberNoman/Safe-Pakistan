@@ -1,1 +1,0 @@
-Requires a `.env` file defining `DASHSCOPE_BASE_URL`, `QWEN_API_KEY`, `FT_MODEL`, and optionally `MAX_MODEL`. Start with `node index.js` (listens on port 3000); smoke-test with `node test.js` after the server is running.

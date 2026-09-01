@@ -2,7 +2,8 @@
 // Spawns backend children against: (1) the real Ollama hifazat-edge model,
 // (2) a low-confidence stub (gate must escalate to L2 Qwen), (3) a dead L1
 // endpoint (fall-through to L2), (4) full blackout — L1 dead AND L2 disabled
-// (must land on L3 rules). Run: node backend/verify-cascade.js
+// (must land on L3 rules-classifier: scam verdict, score 96, conf 88).
+// Run: node backend/verify-cascade.js
 const { spawn } = require('child_process');
 const path = require('path');
 
@@ -18,7 +19,7 @@ async function analyze(port) {
   return res.json();
 }
 
-async function scenario(name, env, expect) {
+async function scenario(name, env, expect, extra) {
   const child = spawn(process.execPath, [path.join(__dirname, 'index.js')],
     { env: { ...process.env, ...env }, stdio: 'ignore' });
   // 6s: the backend fires a startup warm-up; Ollama serializes requests, so
@@ -26,7 +27,8 @@ async function scenario(name, env, expect) {
   await wait(6000);
   let j;
   try { j = await analyze(env.PORT); } catch (e) { j = { error: e.message }; }
-  const pass = j.model_used === expect && j.verdict === 'scam';
+  const pass = j.model_used === expect && j.verdict === 'scam'
+    && (!extra || (j.score === extra.score && j.confidence === extra.confidence));
   console.log((pass ? 'PASS' : 'FAIL') + ' | ' + name + ' | model_used=' + j.model_used +
     ' verdict=' + j.verdict + ' score=' + j.score + ' conf=' + j.confidence);
   if (!pass) console.log(JSON.stringify(j, null, 2));
@@ -40,9 +42,10 @@ async function scenario(name, env, expect) {
   await scenario('real Ollama hifazat-edge', { PORT: '3002', FT_BASE_URL: 'http://127.0.0.1:11434/v1' }, 'FT_MODEL');
   await scenario('gate: conf 50 escalates to L2', { PORT: '3001', FT_BASE_URL: 'http://localhost:11499/v1' }, 'QWEN_MAX');
   await scenario('L1 down: falls to L2', { PORT: '3003', FT_BASE_URL: 'http://127.0.0.1:11999/v1' }, 'QWEN_MAX');
-  // Full blackout: dead L1 + unparseable L2 URL => on-device rules floor.
+  // Full blackout: dead L1 + unparseable L2 URL => L3 rules-classifier floor.
+  // New L3 contract for this scam preset: verdict scam, score 96, conf 88.
   await scenario('blackout: L3 RULES floor', { PORT: '3004', FT_BASE_URL: 'http://127.0.0.1:11999/v1',
-    QWEN_BASE_URL: 'disabled', QWEN_API_KEY: 'disabled' }, 'RULES');
+    QWEN_BASE_URL: 'disabled', QWEN_API_KEY: 'disabled' }, 'RULES', { score: 96, confidence: 88 });
   stub.kill();
   process.exit(0);
 })().catch(e => { console.error('HARNESS FAIL:', e.message); process.exit(1); });

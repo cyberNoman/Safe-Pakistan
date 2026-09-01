@@ -1,1 +1,0 @@
-Node.js CommonJS with Express 5, cors, dotenv; communicates with Alibaba Cloud DashScope Qwen API via native `fetch`.

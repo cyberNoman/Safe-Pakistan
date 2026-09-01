@@ -1,1 +1,0 @@
-Expo SDK 52 + React Native 0.76 + React Navigation v6 for the frontend; Express + Qwen LLM API (with on-device regex fallback) for the backend; both use JSON over HTTPS.

@@ -1,5 +1,6 @@
 node_modules/
 .expo/
+.qoder/
 dist/
 dist-verify/
 web-build/
@@ -18,3 +19,7 @@ backend/test-key.js
 
 # One-off test artifacts
 test-result.json
+
+# Scratch artifacts — root only (leading /) so assets/ screenshots stay tracked
+/*.png
+run*.txt

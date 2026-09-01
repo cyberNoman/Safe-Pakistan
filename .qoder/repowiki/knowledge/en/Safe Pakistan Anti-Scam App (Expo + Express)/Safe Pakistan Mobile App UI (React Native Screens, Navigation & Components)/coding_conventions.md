@@ -1,6 +1,0 @@
-- All visual constants (colors, fonts, spacing, radius, shadow, gradients) are imported from `@/theme/tokens` rather than being hard-coded in screens or components.
-- Text styling uses the typed presets from `@/theme/typography` (`typo.heroEn`, `typo.bodyUr`, etc.) instead of ad-hoc `StyleSheet` text styles.
-- Screens are implemented as default-exported functional components that receive `navigation` from React Navigation and render pure JSX without internal state management.
-- Reusable UI pieces live in `src/components/` and are grouped by role (cards, indicators, overlays, rings) with multiple named exports per file.
-- Animated SVG elements are created by wrapping `react-native-svg` primitives with `Animated.createAnimatedComponent` and driving properties through `useSharedValue` + `useAnimatedProps`.
-- Bilingual UI pairs English and Urdu strings side-by-side using separate props (e.g. `title` / `urduTitle`, `label` / `urduLabel`) so both languages render together.

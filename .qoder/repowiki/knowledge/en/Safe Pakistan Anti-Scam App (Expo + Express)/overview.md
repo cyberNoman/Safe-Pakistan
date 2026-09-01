@@ -1,1 +1,0 @@
-Monorepo root for Safe Pakistan that bundles an Expo React Native frontend and a separate Express backend, wired together via a REST /analyze endpoint to detect Pakistani SMS/voice scams.

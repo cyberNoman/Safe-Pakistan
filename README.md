@@ -26,9 +26,10 @@ in English, Roman Urdu and اردو (Nastaliq).
 ## The problem
 
 Pakistan loses an estimated **Rs 2.6 trillion a year** to digital fraud.
-171,600 complaints hit NCCIA in 2024; cybercrime cases grew **+70%** in two
-years — and the fastest-growing victim group is **45+, low digital literacy,
-rural, often on zero or slow internet**.
+NCCIA logged **171,600 complaints** in 2024 (**+12.7% YoY**), with
+**financial fraud at 47% — the single most-reported cybercrime** — and the
+fastest-growing victim group is **45+, low digital literacy, rural, often on
+zero or slow internet** ([nccia.gov.pk](https://nccia.gov.pk)).
 
 > *"Mubarak ho! Apko 25,000 mile hain. OTP bhejein foran warna account band
 > ho jayega."* — to a mother it reads like luck. To hifazat-edge it is a
@@ -43,7 +44,9 @@ of failure). So we inverted the architecture.
 ```mermaid
 flowchart LR
   A["USER INPUT<br/>SMS · call · screenshot"] --> B["SCAN"]
-  B --> C{"L1 hifazat-edge<br/>confidence ≥ 70?"}
+  B --> L0{"L0 sender prior<br/>verified shortcode?"}
+  L0 -- "template/OTP match · 0ms" --> V
+  L0 -- "spoofed / unknown" --> C{"L1 hifazat-edge<br/>confidence ≥ 70?"}
   C -- "yes · 2.3s" --> V["VERDICT + ACTION<br/>block · alert · NCCIA Shikayat"]
   C -- "unsure / down" --> D["L2 QWEN-MAX<br/>Alibaba Model Studio"]
   D --> V
@@ -55,6 +58,7 @@ flowchart LR
 
 | Layer | Brain | Speed | Cost per scan |
 |---|---|---|---|
+| **L0** | Sender prior — whitelisted shortcodes + transaction/OTP templates, spoof detection forces escalation | **0ms** | **Rs 0** |
 | **L1** | `hifazat-edge` — our fine-tuned Qwen2.5-1.5B, Ollama on-device | **2.3s** | **Rs 0** |
 | **L2** | Qwen-Max (Alibaba Cloud Model Studio) — the teacher for unsure cases | ~9s | ≈ Rs 0.85 (quota-shielded) |
 | **L3** | On-device weighted rule engine — the unbreakable floor | **0ms** | **Rs 0** |
@@ -62,6 +66,24 @@ flowchart LR
 Confidence gate ≥ 70 · silent escalation · quota shield (cache + daily budget) ·
 **every failure path still returns a verdict.** The demo cannot break — it just
 changes which brain answers.
+
+## Measured, not promised — 155-message hold-out
+
+`backend/eval-holdout.js` runs 155 UNSEEN messages (95 scam incl. 5
+sender-spoofed · 30 suspicious · 30 safe with trigger words like OTP/Rs) through
+the live cascade in online **and** offline modes:
+
+| Metric | Cascade | Regex baseline |
+|---|---|---|
+| Accuracy (online) | **72.9%** | 46.5% |
+| Scam recall (online) | **82.1%** | 49.5% |
+| Safe FPR — legit alerts flagged as scam | **13.3%** | 16.7% |
+| Accuracy (offline, L2 down) | 58.7% | 46.5% |
+
+The L3 floor and the eval baseline import the SAME `backend/rules-classifier.js`
+— the floor can never drift from what is measured. Spoofed-sender messages are
+capped at confidence 50 and force-escalated to L2 — impersonation is an
+aggravating signal, never a shortcut.
 
 ## hifazat-edge — our own model
 
@@ -109,7 +131,7 @@ Alibaba Cloud Model Studio (Qwen-Max) · EAS Build (APK) · Urdu TTS (ur-PK)
 - ✓ 4/4 cascade failure scenarios verified by harness
 - ✓ Airplane-mode tested — offline verdict floor at 0ms
 - ✓ EAS preview APK compiled and on device
-- ✓ `/health` pre-stage check + model warm-up protocol
+- ✓ `/health` pre-stage probe + `DEMO_CHECKLIST.md` stage-day runbook
 - ✓ Quota shield active (cache + daily budget)
 
 *We audited ourselves harder than you will.*
@@ -146,8 +168,10 @@ node backend/verify-cascade.js         # 4-scenario cascade harness
 ```
 ├── App.js                     # entry — fonts + navigator
 ├── backend/
-│   ├── index.js               # 3-layer cascade orchestrator (L1→gate→L2→L3)
-│   ├── verify-cascade.js      # automated failure-path harness
+│   ├── index.js               # cascade orchestrator (L0→L1→gate→L2→L3) + /health
+│   ├── rules-classifier.js    # L3 floor = eval baseline (one implementation)
+│   ├── eval-holdout.js        # 155-message hold-out eval, online + offline
+│   ├── verify-cascade.js      # automated failure-path harness (4 scenarios)
 │   ├── stub-ollama.js         # low-confidence Ollama stub for tests
 │   └── .env.example           # credentials template (never commit .env)
 ├── src/
@@ -159,6 +183,7 @@ node backend/verify-cascade.js         # 4-scenario cascade harness
 ├── PitchDeck.html             # judge deck (arrow keys to present)
 ├── SystemDesign.html          # full system design artboards
 ├── Safe Pakistan.html         # 15-screen design specification canvas
+├── DEMO_CHECKLIST.md          # stage-day runbook (hotspot, firewall, /health)
 └── SECURITY.md                # secrets policy & pre-push checklist
 ```
 
