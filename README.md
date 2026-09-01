@@ -25,11 +25,14 @@ in English, Roman Urdu and اردو (Nastaliq).
 
 ## The problem
 
-Pakistan loses an estimated **Rs 2.6 trillion a year** to digital fraud.
-NCCIA logged **171,600 complaints** in 2024 (**+12.7% YoY**), with
-**financial fraud at 47% — the single most-reported cybercrime** — and the
-fastest-growing victim group is **45+, low digital literacy, rural, often on
-zero or slow internet** ([nccia.gov.pk](https://nccia.gov.pk)).
+Pakistan loses an estimated **$9.3B (≈ Rs 2.6 trillion) a year** to digital
+fraud — *Global State of Scams Report 2025*, Global Anti-Scam Alliance &
+Feedzai. NCCIA logged **171,600 complaints** in 2024 (**+12.7% YoY**), with
+**financial fraud at 47% — the single most-reported cybercrime** — official
+statistics from [nccia.gov.pk](https://nccia.gov.pk); growth in reported
+online fraud traces NCCIA's briefing to the parliamentary committee via the
+Digital Rights Foundation. The fastest-growing victim group is **45+, low
+digital literacy, rural, often on zero or slow internet**.
 
 > *"Mubarak ho! Apko 25,000 mile hain. OTP bhejein foran warna account band
 > ho jayega."* — to a mother it reads like luck. To hifazat-edge it is a
@@ -73,17 +76,34 @@ changes which brain answers.
 sender-spoofed · 30 suspicious · 30 safe with trigger words like OTP/Rs) through
 the live cascade in online **and** offline modes:
 
-| Metric | Cascade | Regex baseline |
+| Metric | Cascade (3-run range) | Regex baseline |
 |---|---|---|
-| Accuracy (online) | **72.9%** | 46.5% |
-| Scam recall (online) | **82.1%** | 49.5% |
-| Safe FPR — legit alerts flagged as scam | **13.3%** | 16.7% |
-| Accuracy (offline, L2 down) | 58.7% | 46.5% |
+| Accuracy (online) | **74.8–77.4%** (mean 76.3%) | 46.5% |
+| Scam recall (online) | **85.3–88.4%** | 49.5% |
+| Safe FPR — legit alerts flagged as scam | **13.3–16.7%** | 16.7% |
+| Accuracy (offline, L2 down) | ~59% | 46.5% |
 
 The L3 floor and the eval baseline import the SAME `backend/rules-classifier.js`
 — the floor can never drift from what is measured. Spoofed-sender messages are
 capped at confidence 50 and force-escalated to L2 — impersonation is an
 aggravating signal, never a shortcut.
+
+**Run-to-run variance** (`backend/eval-runs.js`, 3 full online runs):
+accuracy 74.8–77.4% (mean 76.3%), scam recall 85.3–88.4%, safe FPR 13.3–16.7%,
+macro F1 69.5–71.4%. Any single number is one draw from this range.
+
+## Known limitations — stated plainly
+
+- **L1 JSON parse failure ≈ 55%** on out-of-distribution input (76–80 of ~140
+  non-L0 messages per run). Every failure escalates silently to the next layer
+  — the user never sees it, but it is why L1 cannot stand alone.
+- **Offline safe precision 35–40%**: without the cloud layer the regex floor
+  is deliberately conservative and over-flags legit alerts that contain
+  trigger words. A cautious wrong-SUSPICIOUS beats a confident wrong-SAFE.
+- **±2–3% run-to-run variance** from LLM non-determinism (temperature 0.1,
+  not 0) — see the variance harness above.
+- **Suspicious-class recall is weak** — the smallest training slice (336 of
+  1,500 examples); v2 needs more ambiguous examples.
 
 ## hifazat-edge — our own model
 
@@ -171,6 +191,7 @@ node backend/verify-cascade.js         # 4-scenario cascade harness
 │   ├── index.js               # cascade orchestrator (L0→L1→gate→L2→L3) + /health
 │   ├── rules-classifier.js    # L3 floor = eval baseline (one implementation)
 │   ├── eval-holdout.js        # 155-message hold-out eval, online + offline
+│   ├── eval-runs.js           # 3-run variance harness (run-to-run spread)
 │   ├── verify-cascade.js      # automated failure-path harness (4 scenarios)
 │   ├── stub-ollama.js         # low-confidence Ollama stub for tests
 │   └── .env.example           # credentials template (never commit .env)

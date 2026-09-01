@@ -292,9 +292,10 @@ app.post('/analyze/text', async (req, res) => {
       return res.json({ ...r, model_used: 'FT_MODEL' });
     }
   } catch (e) { /* silent: cascade must never break */
-    // Eval sensor only — counts L1 JSON parse failures so format collapse is
-    // visible instead of being silently absorbed into L2 escalations.
-    console.log('[L1-parse-fail]', e.message);
+    // Production stays silent. The eval harness sets EVAL_VERBOSE=1 so L1
+    // JSON parse failures remain countable instead of being absorbed into
+    // L2 escalations without a trace.
+    if (process.env.EVAL_VERBOSE) console.log('[L1-parse-fail]', e.message);
   }
   try {
     const q = await callQwen(MAX_MODEL, text, sender);

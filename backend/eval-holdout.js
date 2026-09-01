@@ -282,9 +282,11 @@ const cell = (s, w) => String(s).padEnd(w);
 // mode: 'online' = full cascade (L0->L1->L2->L3)
 //       'offline' = L2 disabled via env (cascade = L0+L1+L3)
 async function runEval(mode, port) {
+  // EVAL_VERBOSE=1 turns the otherwise-silent L1 catch into a parse-failure
+  // counter source (the production server prints nothing).
   const env = mode === 'offline'
-    ? { ...process.env, PORT: String(port), QWEN_BASE_URL: 'disabled', QWEN_API_KEY: 'disabled' }
-    : { ...process.env, PORT: String(port) };
+    ? { ...process.env, PORT: String(port), QWEN_BASE_URL: 'disabled', QWEN_API_KEY: 'disabled', EVAL_VERBOSE: '1' }
+    : { ...process.env, PORT: String(port), EVAL_VERBOSE: '1' };
   const server = spawn(process.execPath, [path.join(__dirname, 'index.js')], {
     env, stdio: ['ignore', 'pipe', 'inherit'],
   });

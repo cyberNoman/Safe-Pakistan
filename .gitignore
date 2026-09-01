@@ -22,4 +22,5 @@ test-result.json
 
 # Scratch artifacts — root only (leading /) so assets/ screenshots stay tracked
 /*.png
+deck-*.png
 run*.txt

@@ -48,6 +48,8 @@
 ## 2 — On-device readiness
 
 - [ ] EAS preview APK installed on the demo phone
+- [ ] **Backup APK location confirmed** (drive link + copy on a second
+      device) — if the demo phone fails, the swap must take under 2 minutes
 - [ ] Airplane-mode rehearsal: scan the demo preset with radios off — verdict
       must still land (L3 floor, 0ms)
 
