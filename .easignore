@@ -1,8 +1,7 @@
 # EAS build archive exclusions (extends .gitignore intent).
 # Keeps the upload small and secrets out of the build archive.
 node_modules/
-backend/node_modules/
-backend/.env
+backend/
 .expo/
 dist/
 dist-verify/
