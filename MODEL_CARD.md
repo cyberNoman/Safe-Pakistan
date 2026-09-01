@@ -97,7 +97,7 @@ the fast-and-cheap middle; the cloud layer cleans up its misses.
   but it is why this model cannot stand alone.
 - **Offline safe precision 35–40%**: without the cloud layer the regex floor
   over-flags legit alerts containing trigger words (conservative by design).
-- **±2–3% run-to-run variance** from LLM non-determinism (temperature 0.1).
+- Run-to-run variance: ±3% accuracy, up to ±7% on safe precision (89.3–95.8% across 3 runs).
 - **Suspicious-class recall is weak** — smallest training slice (336/1,500).
 - Confidence scores are model outputs, not calibrated probabilities.
 

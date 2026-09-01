@@ -100,8 +100,7 @@ macro F1 69.5–71.4%. Any single number is one draw from this range.
 - **Offline safe precision 35–40%**: without the cloud layer the regex floor
   is deliberately conservative and over-flags legit alerts that contain
   trigger words. A cautious wrong-SUSPICIOUS beats a confident wrong-SAFE.
-- **±2–3% run-to-run variance** from LLM non-determinism (temperature 0.1,
-  not 0) — see the variance harness above.
+- Run-to-run variance: ±3% accuracy, up to ±7% on safe precision (89.3–95.8% across 3 runs).
 - **Suspicious-class recall is weak** — the smallest training slice (336 of
   1,500 examples); v2 needs more ambiguous examples.
 

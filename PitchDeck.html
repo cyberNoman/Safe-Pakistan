@@ -73,7 +73,7 @@
   <p style="font-size:18px">Expo SDK 54 · React Native · Alibaba Qwen · <b class="green">Built with Qoder AI</b></p>
   <div class="badges">
     <span class="badge b">Fine-tuned hifazat-edge on Hugging Face</span>
-    <span class="badge g">Works with zero internet</span>
+    <span class="badge b">Beats a regex baseline on every metric — 155 unseen messages</span>
     <span class="badge">Urdu · Roman Urdu · English</span>
   </div>
 </section>
@@ -156,23 +156,36 @@
     <div>
       <p class="li">• <b>Qwen2.5-1.5B-Instruct + LoRA (Unsloth)</b></p>
       <p class="li">• <b>1,500 localized examples</b> — 864 scam / 336 suspicious / 300 safe</p>
-      <p class="li">• Loss <b>2.10 → 0.026</b> · Q4_K_M GGUF · CPU inference <b>2.3s</b> · <b class="green">Rs 0/scan</b></p>
+      <p class="li">• <b>Q4_K_M GGUF</b> · CPU inference <b>2.3s</b> · <b class="green">Rs 0/scan</b></p>
       <div class="foot" style="margin-top:16px">
         <a href="https://huggingface.co/Noman33/hifazat-edge">huggingface.co/Noman33/hifazat-edge</a>
         <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https%3A%2F%2Fhuggingface.co%2FNoman33%2Fhifazat-edge" width="86" style="vertical-align:middle;margin-left:14px;border-radius:8px;background:#fff;padding:4px" alt="QR to model">
       </div>
     </div>
     <div style="flex:none">
-      <svg viewBox="0 0 320 180" width="340">
-        <line x1="34" y1="10" x2="34" y2="150" stroke="#1F2440" stroke-width="2"/>
-        <line x1="34" y1="150" x2="306" y2="150" stroke="#1F2440" stroke-width="2"/>
-        <polyline points="34,22 70,66 106,98 142,118 178,131 214,139 250,143 300,146" fill="none" stroke="#00C896" stroke-width="3"/>
-        <text x="40" y="18" fill="#94A3B8" font-size="12" font-weight="700">loss 2.10</text>
-        <text x="238" y="132" fill="#00C896" font-size="12" font-weight="800">0.026</text>
-        <text x="170" y="170" fill="#94A3B8" font-size="11" font-weight="600" text-anchor="middle">LoRA training · Colab T4</text>
-      </svg>
+      <table>
+        <tr><th>Metric</th><th>3-run holdout</th></tr>
+        <tr><td>Accuracy</td><td class="n">76.3% mean (74.8–77.4%)</td></tr>
+        <tr><td>Scam recall</td><td class="n">87.0%</td></tr>
+        <tr><td>Safe precision</td><td class="n">92.6%</td></tr>
+        <tr><td>Safe FPR</td><td class="n">14.4% (13.3–16.7%)</td></tr>
+        <tr><td>Macro F1</td><td class="n">70.3%</td></tr>
+        <tr><td>Baseline accuracy</td><td class="n orange">46.5%</td></tr>
+      </table>
     </div>
   </div>
+</section>
+
+<!-- 6B · STRESS TEST -->
+<section class="slide">
+  <div class="kicker">Honesty · Stress Test</div>
+  <h2>We broke our own model on purpose.</h2>
+  <p class="li">• <b class="red">Run 1:</b> 30% accuracy, 40% false alarms, lost to a regex baseline</p>
+  <p class="li">• <b>Diagnosis:</b> JSON serialization failure + no sender verification</p>
+  <p class="li">• <b class="green">Fix:</b> L0 sender prior (never a bypass) + OTP delivery branch + shared rules classifier as the offline floor</p>
+  <p class="li">• <b class="blue">Run 2:</b> 76.3% mean accuracy, 87% scam recall, FPR 14.4%, baseline 46.5%</p>
+  <p class="li">• <b class="orange">Offline:</b> 58.7–61.9%, still above baseline</p>
+  <div class="tag" style="margin-top:26px;font-size:30px">Most teams show a loss curve. We show a stress test.</div>
 </section>
 
 <!-- 7 · SYSTEM DESIGN LOOP -->
@@ -197,7 +210,8 @@
     <text x="830" y="240" fill="#3B6BE0" font-size="15" font-weight="800" text-anchor="middle">3 · CASCADE</text>
     <text x="830" y="262" fill="#00C896" font-size="11.5" font-weight="700" text-anchor="middle">L1 fine-tune · 2.3s · Rs 0</text>
     <text x="830" y="280" fill="#3B6BE0" font-size="11.5" font-weight="700" text-anchor="middle">L2 Qwen-Max · gate ≥ 70</text>
-    <text x="830" y="298" fill="#F4A261" font-size="11.5" font-weight="700" text-anchor="middle">L3 rules · 0ms · offline</text>
+    <text x="830" y="296" fill="#F4A261" font-size="11.5" font-weight="700" text-anchor="middle">L3 shared rules classifier</text>
+    <text x="830" y="312" fill="#F4A261" font-size="11.5" font-weight="700" text-anchor="middle">— same code as the eval baseline</text>
     <rect x="430" y="308" width="200" height="64" rx="14" fill="#141628" stroke="#1F2440" stroke-width="2"/>
     <text x="530" y="334" fill="#F1F5F9" font-size="15" font-weight="800" text-anchor="middle">4 · VERDICT</text>
     <text x="530" y="356" fill="#94A3B8" font-size="11.5" font-weight="600" text-anchor="middle">score + confidence + voice</text>
@@ -238,6 +252,10 @@
     <div><span>✓</span>Warm-up protocol before stage</div>
     <div><span>✓</span>Quota shield active</div>
   </div>
+  <div style="margin-top:16px;background:var(--srf);border:1px solid var(--line);border-radius:12px;padding:12px 18px;font-family:Consolas,ui-monospace,monospace;font-size:12.5px;line-height:1.7;color:var(--mut);max-width:1000px;white-space:pre">PASS | real Ollama hifazat-edge | model_used=FT_MODEL verdict=scam score=99 conf=99
+PASS | gate: conf 50 escalates to L2 | model_used=QWEN_MAX verdict=scam score=95 conf=98
+PASS | L1 down: falls to L2 | model_used=QWEN_MAX verdict=scam score=95 conf=98
+PASS | blackout: L3 RULES floor | model_used=RULES verdict=scam score=96 conf=88</div>
   <div class="foot">Live path: paste the 25,000-rupee OTP scam → SCAM, confidence 99, red flags lit →
     one-tap NCCIA Shikayat. Then pull the network cable and run it again.</div>
 </section>
@@ -266,6 +284,16 @@
   </div>
   <div class="qoder" style="border-color:var(--green)"><b class="green">Feedback flywheel:</b>
     every user correction becomes v2 training data. The shield gets smarter every single day.</div>
+</section>
+
+<!-- 11B · KNOWN LIMITATIONS -->
+<section class="slide">
+  <div class="kicker">Honesty</div>
+  <h2>Known limitations — stated plainly.</h2>
+  <p class="li">• <b>L1 JSON parse failure ~55%</b> out-of-distribution — every failure escalates silently and the user never sees it</p>
+  <p class="li">• <b>Offline safe precision 35–40%</b> — a conservative floor that over-flags</p>
+  <p class="li">• <b>±3% accuracy variance</b>, up to ±7% on safe precision</p>
+  <p class="li">• <b>Suspicious-class recall weak</b> — the smallest training slice; v2 needs more ambiguous examples</p>
 </section>
 
 <!-- 12 · CLOSE -->
