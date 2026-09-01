@@ -17,13 +17,28 @@ in English, Roman Urdu and اردو (Nastaliq).
 ![React Native](https://img.shields.io/badge/React%20Native-0.81.5-61DAFB?style=for-the-badge&logo=react&logoColor=black)
 ![Model hifazat-edge](https://img.shields.io/badge/%F0%9F%A4%97%20Model-hifazat--edge-FF9D00?style=for-the-badge)
 ![Cascade verified](https://img.shields.io/badge/Cascade-4%2F4%20PASS-00C896?style=for-the-badge)
+![Hold-out](https://img.shields.io/badge/Hold--out-74.8%E2%80%9377.4%25%20vs%2046.5%25%20baseline-3B6BE0?style=for-the-badge)
 ![Offline floor](https://img.shields.io/badge/Offline%20floor-Rs%200%20per%20scan-047857?style=for-the-badge)
 
 </div>
 
 ---
 
-## The problem
+## At a glance
+
+| | |
+|---|---|
+| **What it is** | On-device + cloud scam detector for Pakistan — SMS, calls, screenshots |
+| **Verdict speed** | 3 s client race · L1 answers in 2.3 s · L3 floor in 0 ms |
+| **Cost per scan** | **Rs 0** on-device · ≈ Rs 0.85 cloud (quota-shielded) |
+| **Hold-out accuracy** | **74.8–77.4%** (mean 76.3%) vs 46.5% regex baseline — 155 unseen messages |
+| **Resilience** | 4/4 failure-path harness PASS — every outage still returns a verdict |
+| **Languages** | English · Roman Urdu · اردو (Nastaliq) — voice read-out in ur-PK |
+| **Our model** | [hifazat-edge](https://huggingface.co/Noman33/hifazat-edge) — Qwen2.5-1.5B + LoRA, on Hugging Face |
+
+---
+
+## 1 · The problem
 
 Pakistan loses an estimated **$9.3B (≈ Rs 2.6 trillion) a year** to digital
 fraud — *Global State of Scams Report 2025*, Global Anti-Scam Alliance &
@@ -42,7 +57,7 @@ Existing tools fail her three times: **cloud-only** (dies offline),
 **English-only** (misses the most targeted users), **one model** (one point
 of failure). So we inverted the architecture.
 
-## The 3-layer AI inference cascade
+## 2 · The fix — a cascade that cannot break
 
 ```mermaid
 flowchart LR
@@ -61,7 +76,7 @@ flowchart LR
 
 | Layer | Brain | Speed | Cost per scan |
 |---|---|---|---|
-| **L0** | Sender prior — whitelisted shortcodes + transaction/OTP templates, spoof detection forces escalation | **0ms** | **Rs 0** |
+| **L0** | Sender prior — whitelisted shortcodes + transaction/OTP templates; spoof detection forces escalation | **0ms** | **Rs 0** |
 | **L1** | `hifazat-edge` — our fine-tuned Qwen2.5-1.5B, Ollama on-device | **2.3s** | **Rs 0** |
 | **L2** | Qwen-Max (Alibaba Cloud Model Studio) — the teacher for unsure cases | ~9s | ≈ Rs 0.85 (quota-shielded) |
 | **L3** | On-device weighted rule engine — the unbreakable floor | **0ms** | **Rs 0** |
@@ -70,7 +85,19 @@ Confidence gate ≥ 70 · silent escalation · quota shield (cache + daily budge
 **every failure path still returns a verdict.** The demo cannot break — it just
 changes which brain answers.
 
-## Measured, not promised — 155-message hold-out
+## 3 · We broke our own model on purpose
+
+| | |
+|---|---|
+| **Run 1** | 30% accuracy, 40% false alarms — **lost to a regex baseline** |
+| **Diagnosis** | JSON serialization failure + no sender verification |
+| **Fix** | L0 sender prior (never a bypass) + OTP delivery branch + shared rules classifier as the offline floor |
+| **Run 2** | **76.3% mean accuracy · 87% scam recall · FPR 14.4%** — baseline 46.5% |
+| **Offline** | 58.7–61.9% — still above baseline, at Rs 0 |
+
+> Most teams show a loss curve. We show a stress test.
+
+## 4 · Measured, not promised — 155-message hold-out
 
 `backend/eval-holdout.js` runs 155 UNSEEN messages (95 scam incl. 5
 sender-spoofed · 30 suspicious · 30 safe with trigger words like OTP/Rs) through
@@ -79,20 +106,22 @@ the live cascade in online **and** offline modes:
 | Metric | Cascade (3-run range) | Regex baseline |
 |---|---|---|
 | Accuracy (online) | **74.8–77.4%** (mean 76.3%) | 46.5% |
-| Scam recall (online) | **85.3–88.4%** | 49.5% |
-| Safe FPR — legit alerts flagged as scam | **13.3–16.7%** | 16.7% |
-| Accuracy (offline, L2 down) | ~59% | 46.5% |
+| Scam recall | **85.3–88.4%** (mean 87.0%) | 49.5% |
+| Safe precision | **89.3–95.8%** (mean 92.6%) | — |
+| Safe FPR — legit alerts flagged as scam | **13.3–16.7%** (mean 14.4%) | 16.7% |
+| Macro F1 | **69.5–71.4%** (mean 70.3%) | — |
+| Accuracy (offline, L2 down) | **58.7–61.9%** | 46.5% |
 
 The L3 floor and the eval baseline import the SAME `backend/rules-classifier.js`
 — the floor can never drift from what is measured. Spoofed-sender messages are
 capped at confidence 50 and force-escalated to L2 — impersonation is an
 aggravating signal, never a shortcut.
 
-**Run-to-run variance** (`backend/eval-runs.js`, 3 full online runs):
-accuracy 74.8–77.4% (mean 76.3%), scam recall 85.3–88.4%, safe FPR 13.3–16.7%,
-macro F1 69.5–71.4%. Any single number is one draw from this range.
+**Run-to-run variance** (`backend/eval-runs.js`, 3 full online runs): any
+single number above is one draw from its range.
+Run-to-run variance: ±3% accuracy, up to ±7% on safe precision (89.3–95.8% across 3 runs).
 
-## Known limitations — stated plainly
+## 5 · Known limitations — stated plainly
 
 - **L1 JSON parse failure ≈ 55%** on out-of-distribution input (76–80 of ~140
   non-L0 messages per run). Every failure escalates silently to the next layer
@@ -104,13 +133,13 @@ macro F1 69.5–71.4%. Any single number is one draw from this range.
 - **Suspicious-class recall is weak** — the smallest training slice (336 of
   1,500 examples); v2 needs more ambiguous examples.
 
-## hifazat-edge — our own model
+## 6 · hifazat-edge — our own model
 
 | | |
 |---|---|
 | Base | Qwen2.5-1.5B-Instruct + **LoRA (Unsloth)** |
 | Training data | **1,500 localized examples** — 864 scam / 336 suspicious / 300 safe |
-| Training loss | **2.10 → 0.026** |
+| Training | LoRA on Colab T4 — full card, evals and limitations on Hugging Face |
 | Format | Q4_K_M GGUF · CPU inference **2.3s** · **Rs 0/scan** |
 | Weights | [huggingface.co/Noman33/hifazat-edge](https://huggingface.co/Noman33/hifazat-edge) |
 
@@ -119,7 +148,7 @@ macro F1 69.5–71.4%. Any single number is one draw from this range.
 <br><sub>Scan for the model card</sub>
 </div>
 
-## Why the demo cannot fail
+## 7 · Why the demo cannot fail
 
 | Failure | What the user sees | Brain that answers |
 |---|---|---|
@@ -131,21 +160,7 @@ macro F1 69.5–71.4%. Any single number is one draw from this range.
 The client races the backend against a 3-second on-device timer — a verdict
 always lands instantly; the smartest available answer upgrades it silently.
 
-## Built with Qoder, at AI speed
-
-App (13 screens) + backend cascade + training pipeline were co-built with
-**Qoder**, the AI coding agent — in days, not months. Automated verification:
-**4/4 cascade harness PASS** plus a documentation-integrity audit.
-
-> *Humans made every product decision. AI executed them at speed.*
-
-## Stack
-
-Expo SDK 54 · React Native 0.81.5 · React 19.1 · Reanimated · react-native-svg ·
-React Navigation v6 · Node/Express backend · Ollama local inference ·
-Alibaba Cloud Model Studio (Qwen-Max) · EAS Build (APK) · Urdu TTS (ur-PK)
-
-## Demo readiness
+## 8 · Demo readiness
 
 - ✓ 4/4 cascade failure scenarios verified by harness
 - ✓ Airplane-mode tested — offline verdict floor at 0ms
@@ -155,7 +170,21 @@ Alibaba Cloud Model Studio (Qwen-Max) · EAS Build (APK) · Urdu TTS (ur-PK)
 
 *We audited ourselves harder than you will.*
 
-## 90-day roadmap
+## 9 · Built with Qoder, at AI speed
+
+App (13 screens) + backend cascade + training pipeline were co-built with
+**Qoder**, the AI coding agent — in days, not months. Automated verification:
+**4/4 cascade harness PASS** plus a documentation-integrity audit.
+
+> *Humans made every product decision. AI executed them at speed.*
+
+## 10 · Stack
+
+Expo SDK 54 · React Native 0.81.5 · React 19.1 · Reanimated · react-native-svg ·
+React Navigation v6 · Node/Express backend · Ollama local inference ·
+Alibaba Cloud Model Studio (Qwen-Max) · EAS Build (APK) · Urdu TTS (ur-PK)
+
+## 11 · Roadmap & business model
 
 | Phase | Scope |
 |---|---|
@@ -179,6 +208,7 @@ cp backend/.env.example backend/.env   # add your Qwen key
 node backend/index.js                  # cascade on :3000 (warms L1 at boot)
 npx expo start                         # app
 node backend/verify-cascade.js         # 4-scenario cascade harness
+node backend/eval-holdout.js           # 155-message hold-out, online + offline
 ```
 
 <details>
