@@ -3,6 +3,9 @@
 node_modules/
 backend/
 .expo/
+
+# Explicitly include assets/ (icon/splash required by prebuild)
+!assets/
 dist/
 dist-verify/
 web-build/
