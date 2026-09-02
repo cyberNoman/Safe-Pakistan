@@ -3,12 +3,15 @@
  * Wired to the Home avatar (previously a dead button).
  *
  * New utility screen (not one of the 15 artboards) — follows DESIGN_RULES tokens.
+ * Preferences: language, voice narration, family role, alert notifications,
+ * auto-delete window, and scan-history export (RN Share → Android intent).
+ * Dark mode is intentionally NOT here — no theme infra yet (V2 open-task #6).
  * Auth is a placeholder: name/phone are demo identity and logout is a stub.
  * See VISION.md — real sign-in (Alibaba Cloud SMS OTP) is V2 sprint one.
- * Fits 390×844; ScrollView guards short devices.
+ * Scrolling preferences screen; the ScrollView fits short devices.
  */
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, Switch, Alert, Linking, StyleSheet, StatusBar } from 'react-native';
+import { View, Text, ScrollView, Pressable, Switch, Alert, Linking, Share, StyleSheet, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZE, RADIUS, SHADOW, SPACE, urduSize } from '@/theme/tokens';
@@ -30,13 +33,36 @@ const LANGS = [
 
 const ROLES = ['Self', 'Ammi', 'Abu', 'Beta', 'Behan'];
 
+// Alert-me-for rows. Neutral styling on purpose: red + green must never share a
+// card (design law) and red is reserved for the scam verdict — so these use the
+// brand-blue switch and muted icons, not per-verdict colours.
+const NOTIF_ROWS = [
+  { key: 'scam',       label: 'Scam',       sub: 'Dhoke ka foran alert', icon: 'warning-outline' },
+  { key: 'suspicious', label: 'Suspicious', sub: 'Shaki message',        icon: 'alert-circle-outline' },
+  { key: 'safe',       label: 'Safe',       sub: 'Theek message',        icon: 'checkmark-circle-outline' },
+];
+
+// Auto-delete window (days). 0 = never. Real: LocalDBService prunes on read.
+const AUTO_DELETE = [
+  { days: 30, label: '30d' },
+  { days: 60, label: '60d' },
+  { days: 90, label: '90d' },
+  { days: 0,  label: 'Never' },
+];
+
 export default function ProfileScreen({ navigation }) {
   const { language, setLang } = useLanguageContext();
   const [voice, setVoice] = useState(true);
   const [role, setRole] = useState('Self');
+  const [notif, setNotif] = useState({ scam: true, suspicious: true, safe: false });
+  const [autoDelete, setAutoDelete] = useState(0);
 
   useEffect(() => {
-    (async () => { setVoice(await LocalDBService.getVoicePref()); })();
+    (async () => {
+      setVoice(await LocalDBService.getVoicePref());
+      setNotif(await LocalDBService.getNotifPrefs());
+      setAutoDelete(await LocalDBService.getAutoDelete());
+    })();
   }, []);
 
   const toggleVoice = async (on) => {
@@ -44,7 +70,40 @@ export default function ProfileScreen({ navigation }) {
     await LocalDBService.setVoicePref(on);
   };
 
+  const toggleNotif = async (key, on) => {
+    const next = { ...notif, [key]: on };
+    setNotif(next);
+    await LocalDBService.setNotifPrefs(next);
+  };
+
+  const chooseAutoDelete = async (days) => {
+    setAutoDelete(days);
+    await LocalDBService.setAutoDelete(days);
+  };
+
   const openLink = (url) => Linking.openURL(url).catch(() => {});
+
+  // Export the real scan history as JSON via the native share sheet (Android
+  // intent). No file-system / sharing dependency — RN's built-in Share only.
+  const exportHistory = async () => {
+    const scans = await LocalDBService.getScanHistory();
+    if (!scans.length) {
+      Alert.alert('Koi data nahi', 'Abhi export karne ke liye koi scan history nahi hai.');
+      return;
+    }
+    const payload = {
+      app: 'Safe Pakistan', version: APP_VERSION,
+      exported_at: new Date().toISOString(), count: scans.length, scans,
+    };
+    try {
+      await Share.share({
+        title: 'Safe Pakistan — Scan History',
+        message: JSON.stringify(payload, null, 2),
+      });
+    } catch (e) {
+      // user dismissed the share sheet — nothing to do
+    }
+  };
 
   const logout = () => Alert.alert(
     'Sign-out',
@@ -126,6 +185,60 @@ export default function ProfileScreen({ navigation }) {
               );
             })}
           </View>
+        </View>
+
+        {/* Notifications — which verdicts alert the user (neutral styling) */}
+        <Text style={styles.sectionLabel}>NOTIFICATIONS</Text>
+        <Text style={[typo.labelUr, { marginBottom: SPACE.sm }]}>اطلاعات</Text>
+        <View style={[styles.card, SHADOW.soft]}>
+          <Text style={styles.rowSub}>Alert me for:</Text>
+          {NOTIF_ROWS.map((r, i) => (
+            <View key={r.key}>
+              {i > 0 ? <View style={styles.divider} /> : null}
+              <View style={styles.row}>
+                <Ionicons name={r.icon} size={SIZE.lg} color={COLORS.textMuted} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rowLabel}>{r.label}</Text>
+                  <Text style={styles.rowSub}>{r.sub}</Text>
+                </View>
+                <Switch
+                  value={!!notif[r.key]} onValueChange={(v) => toggleNotif(r.key, v)}
+                  trackColor={{ true: COLORS.primary, false: COLORS.border }}
+                  thumbColor={COLORS.white}
+                />
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* Privacy & data — auto-delete window + real JSON export */}
+        <Text style={styles.sectionLabel}>{'PRIVACY & DATA'}</Text>
+        <Text style={[typo.labelUr, { marginBottom: SPACE.sm }]}>رازداری اور ڈیٹا</Text>
+        <View style={[styles.card, SHADOW.soft]}>
+          <Text style={styles.rowLabel}>Auto-delete scans</Text>
+          <Text style={styles.rowSub}>Purane scans khud-ba-khud mita dein</Text>
+          <View style={styles.chipRow}>
+            {AUTO_DELETE.map(opt => {
+              const on = autoDelete === opt.days;
+              return (
+                <Pressable key={opt.label} onPress={() => chooseAutoDelete(opt.days)}
+                  style={[styles.chip, on && styles.chipOn]}>
+                  <Text style={[styles.chipText, on && { color: COLORS.white }]}>{opt.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <View style={styles.divider} />
+
+          <Pressable style={styles.row} onPress={exportHistory}>
+            <Ionicons name="download-outline" size={SIZE.lg} color={COLORS.primary} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowLabel}>Download my scan history</Text>
+              <Text style={styles.rowSub}>JSON export · share sheet</Text>
+            </View>
+            <Ionicons name="share-social-outline" size={SIZE.lg} color={COLORS.textMuted} />
+          </Pressable>
         </View>
 
         {/* About */}

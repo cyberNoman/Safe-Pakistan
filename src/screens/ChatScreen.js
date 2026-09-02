@@ -6,12 +6,47 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZE, RADIUS, SPACE, SHADOW, gradients } from '@/theme/tokens';
 import { typo } from '@/theme/typography';
 import { DemoBadge } from '@/components/Indicators';
+import { LocalDBService } from '@/services/LocalDBService';
 
-const SUGGESTIONS = [
+const DEFAULT_SUGGESTIONS = [
   'Kya JazzCash SMS safe hai?',
   'BISP 8171 verify karo',
   'OTP kab dena chahiye?',
 ];
+
+// Contextual quick-replies — 3 chips picked from what the user last asked.
+// Each chip is itself a KB-resolvable question, so a tap always gets an answer.
+function suggestFor(lastUserText) {
+  const t = String(lastUserText || '').toLowerCase();
+  if (!t) return DEFAULT_SUGGESTIONS;
+  if (/(sbp|state bank|bank|ubl|account|atm|debit|credit card|unblock)/.test(t))
+    return ['State Bank ka number?', 'Bank call par account unblock bole to?', 'OTP kab dena chahiye?'];
+  if (/(fbr|tax|filer|income tax)/.test(t))
+    return ['FBR tax ka number?', 'Tax ke naam par fraud?', 'NCCIA 1799 par report kaise karun?'];
+  if (/(pta|spam|unsolicited|9000)/.test(t))
+    return ['Spam SMS kahan bhejein?', 'PTA complaint portal kya hai?', 'NCCIA 1799 kya hai?'];
+  if (/(job|naukri|visa|gulf|overseas)/.test(t))
+    return ['Job fee scam kya hai?', 'Visa ke liye advance fees?', 'NCCIA report kaise karun?'];
+  if (/(lottery|prize|winner|jeet|inaam|claim|lucky draw)/.test(t))
+    return ['You have won SMS aaya?', 'Lottery claim fee scam?', 'NCCIA 1799 par report?'];
+  if (/(romance|girlfriend|boyfriend|pyar|mohabbat|shaadi|online rishta)/.test(t))
+    return ['Romance scam kya hai?', 'Pyar ke naam par fraud?', 'NCCIA report kaise karun?'];
+  if (/(parcel|customs|courier|package|delivery)/.test(t))
+    return ['Parcel customs fee scam?', 'Courier fraud se kaise bachein?', 'NCCIA 1799 par report?'];
+  if (/(qr|scan code)/.test(t))
+    return ['QR scan karna safe hai?', 'QR se paise milte hain?', 'Easypaisa fraud alert?'];
+  if (/(nadra|cnic|shanakht|identity card)/.test(t))
+    return ['NADRA ka block SMS aaya?', 'CNIC share karna safe hai?', 'NCCIA report kaise karun?'];
+  if (/(jazzcash|jazz cash|easypaisa|easy paisa|4444|3737)/.test(t))
+    return ['JazzCash official sender kya hai?', 'Easypaisa fraud alert?', 'OTP kab dena chahiye?'];
+  if (/(bisp|ehsaas|8171|eligibility)/.test(t))
+    return ['BISP 8171 verify karo', 'Ehsaas eligibility kaise check karun?', 'BISP fees maange to?'];
+  if (/(otp|code|pin|cvv|password)/.test(t))
+    return ['OTP kab dena chahiye?', 'Bank OTP maange to?', 'CNIC share karna safe hai?'];
+  if (/(nccia|cybercrime|cyber crime|1799|shikayat)/.test(t))
+    return ['NCCIA 1799 kya hai?', 'Shikayat kaise darj karun?', 'PTA complaint portal kya hai?'];
+  return DEFAULT_SUGGESTIONS;
+}
 
 // ── Scoped knowledge base ────────────────────────────────────────────────
 // Pre-verified facts ONLY. No open-ended LLM calls from chat. Each fact carries
@@ -80,6 +115,48 @@ const KB = [
   { keys: ['friend', 'dost', 'impersonat', 'paise maang', 'paise bhejo'],
     en: 'Agar koi dost paise maange, pehle call kar ke tasdeeq karein.',
     ur: 'اگر کوئی دوست پیسے مانگے، پہلے کال کر کے تصدیق کریں۔' },
+
+  // ── V2 KB expansion — verified national helplines + common scam patterns ──
+  // source: sunwai.sbp.org.pk — SBP Consumer Protection Dept (banking complaints)
+  { keys: ['state bank', 'sbp', 'central bank'],
+    en: 'State Bank complaint helpline 021-111-727-273 hai.',
+    ur: 'اسٹیٹ بینک شکایت ہیلپ لائن 021-111-727-273 ہے۔' },
+  // source: fbr.gov.pk — FBR taxpayer helpline
+  { keys: ['fbr', 'tax', 'income tax', 'filer'],
+    en: 'FBR tax helpline 051-111-772-772 hai.',
+    ur: 'ایف بی آر ٹیکس ہیلپ لائن 051-111-772-772 ہے۔' },
+  // source: pta.gov.pk — spam short code 9000, complaint.pta.gov.pk, helpline 0800-55055
+  { keys: ['pta', 'spam', 'unsolicited'],
+    en: 'Fraud SMS PTA ko 9000 par bhejein. Portal: complaint.pta.gov.pk.',
+    ur: 'دھوکہ کے پیغام پی ٹی اے کو 9000 پر بھیجیں۔' },
+  // source: common scam pattern — advance-fee job / overseas-visa fraud
+  { keys: ['job', 'naukri', 'visa', 'gulf', 'overseas', 'advance fee', 'registration fee'],
+    en: 'Job ya visa ki advance fees scam hai. Kabhi na dein.',
+    ur: 'نوکری یا ویزہ کی ایڈوانس فیس دھوکہ ہے۔ کبھی نہ دیں۔' },
+  // source: common scam pattern — "you won" prize / lottery advance-fee
+  { keys: ['winner', 'you have won', 'won a', 'claim', 'congratulations', 'foreign lottery'],
+    en: '"You have won" SMS ek scam hai. Koi fees na dein.',
+    ur: '"آپ جیت گئے" پیغام دھوکہ ہے۔ کوئی فیس نہ دیں۔' },
+  // source: common scam pattern — romance / online-relationship fraud
+  { keys: ['romance', 'girlfriend', 'boyfriend', 'pyar', 'mohabbat', 'online rishta', 'shaadi'],
+    en: 'Online "romance" jo paise maange, woh scam hai. Kabhi na bhejein.',
+    ur: 'آن لائن "رومانس" جو پیسے مانگے، وہ دھوکہ ہے۔ کبھی نہ بھیجیں۔' },
+  // source: NADRA advisory — NADRA never asks to update/block CNIC by SMS
+  { keys: ['nadra', 'cnic block', 'cnic update', 'cnic band'],
+    en: 'NADRA kabhi SMS par CNIC block ya fees update nahi maangta.',
+    ur: 'نادرا کبھی پیغام پر شناختی کارڈ بند یا فیس اپ ڈیٹ نہیں مانگتا۔' },
+  // source: Easypaisa / JazzCash QR fraud advisory — a "receive" QR can send money
+  { keys: ['qr', 'qr code', 'scan code'],
+    en: 'QR scan se paise nahi milte — ulte chale jaate hain.',
+    ur: 'کیو آر اسکین سے پیسے نہیں ملتے — الٹے چلے جاتے ہیں۔' },
+  // source: banking fraud advisory — banks never call to "verify/unblock" an account
+  { keys: ['account block', 'account band', 'verify account', 'account update', 'unblock'],
+    en: 'Bank kabhi call par account unblock ya verify nahi karta.',
+    ur: 'بینک کبھی کال پر اکاؤنٹ ان بلاک یا ویری فائی نہیں کرتا۔' },
+  // source: common scam pattern — parcel / customs advance-fee fraud
+  { keys: ['parcel', 'customs', 'courier', 'package', 'delivery fee'],
+    en: '"Parcel customs mein phansa, fees bhejein" — yeh scam hai.',
+    ur: '"پارسل کسٹم میں پھنسا، فیس بھیجیں" — یہ دھوکہ ہے۔' },
 ];
 
 // Number-check rule (kept): a known shortcode confirms the official sender;
@@ -122,6 +199,9 @@ function guardianReply(text) {
 
 export default function ChatScreen({ navigation }) {
   const [text, setText] = useState('');
+  const [suggestions, setSuggestions] = useState(DEFAULT_SUGGESTIONS);
+  // Per-message feedback: { [botMsgId]: 'yes' | 'no' | 'reported' }.
+  const [feedback, setFeedback] = useState({});
   // Clean greeting only — every subsequent reply comes from the scoped KB.
   const [messages, setMessages] = useState([
     { id: '1', from: 'bot',
@@ -136,9 +216,22 @@ export default function ChatScreen({ navigation }) {
     const now = Date.now();
     setMessages(prev => [...prev,
       { id: now,     from: 'user', text: t },
-      { id: now + 1, from: 'bot', enText: reply.en, urText: reply.ur, warn: reply.warn },
+      { id: now + 1, from: 'bot', enText: reply.en, urText: reply.ur, warn: reply.warn, q: t },
     ]);
+    setSuggestions(suggestFor(t));
     setText('');
+  };
+
+  // Feedback lives under the newest bot answer only ("end of conversation").
+  const lastId = messages[messages.length - 1]?.id;
+
+  const markFeedback = (m, value) => {
+    setFeedback(prev => ({ ...prev, [m.id]: value }));
+    LocalDBService.logChatFeedback({ q: m.q, en: m.enText, ur: m.urText, value });
+  };
+  const reportAnswer = (m) => {
+    setFeedback(prev => ({ ...prev, [m.id]: 'reported' }));
+    LocalDBService.logChatReport({ q: m.q, en: m.enText, ur: m.urText });
   };
 
   return (
@@ -169,7 +262,13 @@ export default function ChatScreen({ navigation }) {
         {/* Message list — inverted so the newest message is always anchored at the bottom */}
         <ScrollView inverted style={styles.msgList} contentContainerStyle={styles.msgListContent}
           keyboardShouldPersistTaps="handled">
-          {[...messages].reverse().map(m => m.from === 'bot' ? <BotMsg key={m.id} m={m} /> : <UserMsg key={m.id} text={m.text} />)}
+          {[...messages].reverse().map(m => m.from === 'bot'
+            ? <BotMsg key={m.id} m={m}
+                showFeedback={m.id === lastId && !!m.q}
+                feedback={feedback[m.id]}
+                onFeedback={(v) => markFeedback(m, v)}
+                onReport={() => reportAnswer(m)} />
+            : <UserMsg key={m.id} text={m.text} />)}
           <View style={styles.datePill}>
             <Text style={typo.labelEn}>AAJ · TODAY</Text>
           </View>
@@ -179,7 +278,7 @@ export default function ChatScreen({ navigation }) {
         <ScrollView horizontal showsHorizontalScrollIndicator={false}
           style={{ backgroundColor: COLORS.bg }}
           contentContainerStyle={styles.suggestionRail}>
-          {SUGGESTIONS.map((s, i) => (
+          {suggestions.map((s, i) => (
             <Pressable key={i} style={styles.suggestion} onPress={() => submit(s)}>
               <Text style={{ fontFamily: FONTS.enSemibold, fontSize: SIZE.sm, color: COLORS.primary }}>{s}</Text>
             </Pressable>
@@ -211,27 +310,55 @@ export default function ChatScreen({ navigation }) {
   );
 }
 
-function BotMsg({ m }) {
+function BotMsg({ m, showFeedback, feedback, onFeedback, onReport }) {
   return (
-    <View style={styles.botRow}>
-      <LinearGradient colors={gradients.hero.colors} start={gradients.hero.start} end={gradients.hero.end}
-        style={styles.botMini}
-      >
-        <Ionicons name="shield-checkmark" size={SIZE.sm} color={COLORS.white} />
-      </LinearGradient>
-      <View style={styles.botBubble}>
-        {m.enText && <Text style={styles.botText}>{m.enText}</Text>}
-        {m.urText && <Text style={[typo.bodyUr, { marginTop: m.enText ? SPACE.xs : 0 }]}>{m.urText}</Text>}
-        {m.warn && (
-          <View style={styles.warn}>
-            <View style={styles.warnLabelRow}>
-              <Ionicons name="alert-circle" size={SIZE.xs} color={COLORS.danger} />
-              <Text style={[typo.labelEn, { color: COLORS.danger }]}>SUSPICIOUS NUMBER</Text>
+    <View style={styles.botWrap}>
+      <View style={styles.botRow}>
+        <LinearGradient colors={gradients.hero.colors} start={gradients.hero.start} end={gradients.hero.end}
+          style={styles.botMini}
+        >
+          <Ionicons name="shield-checkmark" size={SIZE.sm} color={COLORS.white} />
+        </LinearGradient>
+        <View style={styles.botBubble}>
+          {m.enText && <Text style={styles.botText}>{m.enText}</Text>}
+          {m.urText && <Text style={[typo.bodyUr, { marginTop: m.enText ? SPACE.xs : 0 }]}>{m.urText}</Text>}
+          {m.warn && (
+            <View style={styles.warn}>
+              <View style={styles.warnLabelRow}>
+                <Ionicons name="alert-circle" size={SIZE.xs} color={COLORS.danger} />
+                <Text style={[typo.labelEn, { color: COLORS.danger }]}>SUSPICIOUS NUMBER</Text>
+              </View>
+              <Text style={styles.botText}>{m.warn}</Text>
             </View>
-            <Text style={styles.botText}>{m.warn}</Text>
-          </View>
-        )}
+          )}
+        </View>
       </View>
+      {showFeedback ? (
+        <View style={styles.fbRow}>
+          {feedback ? (
+            <View style={styles.fbDone}>
+              <Ionicons name="checkmark-circle" size={SIZE.sm} color={COLORS.primary} />
+              <Text style={styles.fbDoneText}>
+                {feedback === 'reported' ? 'Report ho gaya — shukriya.' : 'Shukriya! Feedback save ho gaya.'}
+              </Text>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.fbLabel}>Was this helpful?</Text>
+              <Pressable onPress={() => onFeedback('yes')} style={styles.fbBtn}>
+                <Ionicons name="thumbs-up-outline" size={SIZE.base} color={COLORS.textMuted} />
+              </Pressable>
+              <Pressable onPress={() => onFeedback('no')} style={styles.fbBtn}>
+                <Ionicons name="thumbs-down-outline" size={SIZE.base} color={COLORS.textMuted} />
+              </Pressable>
+              <Pressable onPress={onReport} style={styles.fbBtn}>
+                <Ionicons name="flag-outline" size={SIZE.sm} color={COLORS.textMuted} />
+                <Text style={styles.fbReportText}>Report</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -280,6 +407,19 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.btn, borderTopLeftRadius: RADIUS.sm, flexShrink: 1,
   },
   botText: { fontFamily: FONTS.enMedium, fontSize: SIZE.sm, color: COLORS.text, lineHeight: SIZE.sm * 1.5 },
+  botWrap: { alignItems: 'flex-start' },
+  fbRow: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACE.sm,
+    marginTop: SPACE.xs, marginLeft: SPACE.xl,
+  },
+  fbLabel: { fontFamily: FONTS.enMedium, fontSize: SIZE.xs, color: COLORS.textMuted },
+  fbBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACE.xs,
+    minWidth: 44, minHeight: 44,
+  },
+  fbReportText: { fontFamily: FONTS.enMedium, fontSize: SIZE.xs, color: COLORS.textMuted },
+  fbDone: { flexDirection: 'row', alignItems: 'center', gap: SPACE.xs, minHeight: 44 },
+  fbDoneText: { fontFamily: FONTS.enMedium, fontSize: SIZE.xs, color: COLORS.primary },
   userBubble: {
     paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm,
     borderRadius: RADIUS.btn, borderBottomRightRadius: RADIUS.sm,

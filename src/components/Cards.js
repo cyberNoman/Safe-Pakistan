@@ -59,7 +59,12 @@ export function StatCard({ value, label, urduLabel, color = COLORS.primary, icon
 }
 
 // ── FamilyMemberCard ─────────────────────────────────────────
-export function FamilyMemberCard({ member, onPress }) {
+// `member`: { name, color, role } + either simulated { status, lastProtected }
+// or a real roster member { phone }. `onRemove` renders a neutral trash button
+// (never red — red is the scam verdict only). Backward-compatible.
+export function FamilyMemberCard({ member, onPress, onRemove }) {
+  const subtitle = member.subtitle
+    || (member.lastProtected ? `Last protected: ${member.lastProtected}` : (member.phone || ''));
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [
       styles.familyCard, SHADOW.soft, pressed && { opacity: 0.85 }
@@ -67,20 +72,29 @@ export function FamilyMemberCard({ member, onPress }) {
       <Avatar name={member.name} color={member.color} />
       <View style={{ flex: 1, marginHorizontal: SPACE.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACE.sm }}>
-          <Text style={{ fontFamily: FONTS.enBold, fontSize: SIZE.base, color: COLORS.text }}>
+          <Text numberOfLines={1} style={{ fontFamily: FONTS.enBold, fontSize: SIZE.base, color: COLORS.text, flexShrink: 1 }}>
             {member.name}
           </Text>
           <View style={styles.roleBadge}>
             <Text style={styles.roleBadgeText}>{(member.role || '').toUpperCase()}</Text>
           </View>
         </View>
-        <Text style={{ fontFamily: FONTS.enMedium, fontSize: SIZE.xs, color: COLORS.textMuted, marginTop: SPACE.xs }}>
-          Last protected: {member.lastProtected}
-        </Text>
+        {subtitle ? (
+          <Text numberOfLines={1} style={{ fontFamily: FONTS.enMedium, fontSize: SIZE.xs, color: COLORS.textMuted, marginTop: SPACE.xs }}>
+            {subtitle}
+          </Text>
+        ) : null}
       </View>
-      <StatusPill kind={member.status === 'safe' ? 'safe' : 'off'}>
-        {member.status === 'safe' ? 'PROTECTED' : 'OFFLINE'}
-      </StatusPill>
+      {member.status ? (
+        <StatusPill kind={member.status === 'safe' ? 'safe' : 'off'}>
+          {member.status === 'safe' ? 'PROTECTED' : 'OFFLINE'}
+        </StatusPill>
+      ) : null}
+      {onRemove ? (
+        <Pressable onPress={onRemove} hitSlop={SIZE.sm} style={styles.removeBtn}>
+          <Ionicons name="trash-outline" size={SIZE.lg} color={COLORS.textMuted} />
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 }
@@ -162,6 +176,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface, borderRadius: RADIUS.btn, padding: SPACE.sm,
     borderWidth: 1, borderColor: COLORS.border,
   },
+  removeBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   roleBadge: {
     paddingHorizontal: SPACE.xs, paddingVertical: SPACE.xs / 2,
     backgroundColor: COLORS.surface2, borderRadius: RADIUS.sm,
