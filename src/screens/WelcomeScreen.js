@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInUp, FadeOutDown } from 'react-native-reanimated';
 
 import { COLORS, FONTS, RADIUS, SIZE, SPACE, SHADOW, gradients } from '@/theme/tokens';
 import { typo, enText } from '@/theme/typography';
@@ -17,6 +18,18 @@ const LANGS = [
 
 export default function WelcomeScreen({ navigation }) {
   const [lang, setLang] = useState('ur');
+  const [note, setNote] = useState(null);
+
+  // Honest fallback: sign-in does not exist in this release. Say so and point at
+  // the working path — never leave a dead tap.
+  const onSignIn = () => setNote("Auth V2 sprint one mein hai — abhi 'Shuru Karen' use karein.");
+
+  // Auto-hide the note.
+  useEffect(() => {
+    if (!note) return undefined;
+    const t = setTimeout(() => setNote(null), 3000);
+    return () => clearTimeout(t);
+  }, [note]);
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.primaryDk }}>
@@ -61,6 +74,15 @@ export default function WelcomeScreen({ navigation }) {
           </Text>
         </View>
 
+        {/* Honest note — inline above the auto-margin rail, so nothing shifts */}
+        {note ? (
+          <Animated.View entering={FadeInUp.duration(200)} exiting={FadeOutDown.duration(200)}
+            style={styles.note}>
+            <Ionicons name="information-circle" size={SIZE.base} color={COLORS.white} />
+            <Text style={styles.noteText}>{note}</Text>
+          </Animated.View>
+        ) : null}
+
         {/* Language */}
         <View style={{ marginTop: 'auto', marginBottom: SPACE.lg }}>
           <Text style={styles.selectLabel}>SELECT LANGUAGE</Text>
@@ -80,7 +102,8 @@ export default function WelcomeScreen({ navigation }) {
             <Text style={styles.ctaText}>Shuru Karen</Text>
             <Ionicons name="arrow-forward" size={18} color={COLORS.primary} />
           </Pressable>
-          <Pressable hitSlop={8}>
+          <Pressable hitSlop={8} onPress={onSignIn}
+            style={({ pressed }) => [styles.signinBtn, pressed && { opacity: 0.7 }]}>
             <Text style={styles.signin}>I already have an account</Text>
           </Pressable>
         </View>
@@ -118,4 +141,15 @@ const styles = StyleSheet.create({
   },
   ctaText: { fontFamily: FONTS.enExtra, fontSize: 17, color: COLORS.primary },
   signin: enText(SIZE.sm, FONTS.enSemibold, COLORS.white80, { textAlign: 'center' }),
+  // 44pt hit target for the sign-in line.
+  signinBtn: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  // Honest note — glass pill on the blue hero gradient.
+  note: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACE.sm,
+    marginHorizontal: SPACE.lg, marginTop: SPACE.md,
+    paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm,
+    borderRadius: RADIUS.chip,
+    backgroundColor: COLORS.white12, borderWidth: 1, borderColor: COLORS.white20,
+  },
+  noteText: { fontFamily: FONTS.enBold, fontSize: SIZE.base, color: COLORS.white, flex: 1 },
 });

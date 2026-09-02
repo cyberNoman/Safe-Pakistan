@@ -16,10 +16,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue, useAnimatedStyle, withRepeat, withSequence,
-  withTiming, withDelay, Easing,
+  withTiming, withDelay, Easing, FadeInUp, FadeOutDown,
 } from 'react-native-reanimated';
 
-import { COLORS, FONTS, RADIUS, SIZE, SPACE, gradients } from '@/theme/tokens';
+import { COLORS, FONTS, RADIUS, SIZE, SPACE, SHADOW, gradients } from '@/theme/tokens';
 import { typo, enText } from '@/theme/typography';
 
 const LANGS = [
@@ -28,9 +28,35 @@ const LANGS = [
   { code:'ru', label:'Roman Urdu' },
 ];
 
+// Spoken-style prompts. Tapping one hands the question to the Guardian chat,
+// which is where a real answer exists — this screen has no STT engine.
+const HINTS = [
+  '"Yeh SMS scam hai ya nahi?"',
+  '"JazzCash ka helpline number kya hai?"',
+  '"BISP 8171 ka asli message kaisa hota hai?"',
+];
+
 export default function VoiceScreen({ navigation }) {
   const [lang, setLang] = useState('ur');
   const [state, setState] = useState('listening'); // 'idle' | 'listening' | 'processing' | 'done'
+  const [note, setNote] = useState(null);
+
+  // Honest fallback: speech-to-text is NOT wired (see the P0 note at the top of
+  // this file). Tapping the mic says so and points at typing instead of faking it.
+  const onMicTap = () => setNote('Voice input device par nahi — type karein');
+
+  // A hint chip is a real question → open the Guardian chat with it pre-filled.
+  const onHintTap = (h) => navigation?.navigate?.('Main', {
+    screen: 'Chat',
+    params: { prefill: String(h).replace(/"/g, '') },
+  });
+
+  // Auto-hide the note.
+  useEffect(() => {
+    if (!note) return undefined;
+    const t = setTimeout(() => setNote(null), 2600);
+    return () => clearTimeout(t);
+  }, [note]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -76,7 +102,13 @@ export default function VoiceScreen({ navigation }) {
 
       {/* Mic with ripples */}
       <View style={styles.center}>
-        <MicRipples active={state === 'listening'} />
+        <Pressable
+          onPress={onMicTap}
+          accessibilityLabel="Mic — voice input is device par available nahi"
+          style={({ pressed }) => pressed && { transform: [{ scale: 0.98 }] }}
+        >
+          <MicRipples active={state === 'listening'} />
+        </Pressable>
 
         <View style={{ alignItems: 'center', marginTop: SPACE.xl }}>
           <Text style={styles.stateLabel}>
@@ -98,23 +130,29 @@ export default function VoiceScreen({ navigation }) {
         </View>
 
         {state === 'listening' && <Waveform />}
+
+        {/* Honest mic note — absolute overlay, so the 844px layout is untouched */}
+        {note ? (
+          <Animated.View entering={FadeInUp.duration(200)} exiting={FadeOutDown.duration(200)}
+            style={[styles.note, SHADOW.elevated]}>
+            <Ionicons name="information-circle" size={SIZE.base} color={COLORS.white} />
+            <Text style={styles.noteText}>{note}</Text>
+          </Animated.View>
+        ) : null}
       </View>
 
-      {/* Voice hints */}
+      {/* Voice hints — tappable: each hands its question to the Guardian chat */}
       <View style={styles.hints}>
         <Text style={enText(SIZE.xs, FONTS.enBold, COLORS.white70, {
           letterSpacing: 1.2, textAlign: 'center', marginBottom: SPACE.sm,
         })}>
           YEH BOL KAR DEKHEIN
         </Text>
-        {[
-          '"Yeh SMS scam hai ya nahi?"',
-          '"JazzCash ka helpline number kya hai?"',
-          '"BISP 8171 ka asli message kaisa hota hai?"',
-        ].map((h, i) => (
-          <View key={i} style={styles.hintChip}>
+        {HINTS.map((h, i) => (
+          <Pressable key={i} onPress={() => onHintTap(h)}
+            style={({ pressed }) => [styles.hintChip, pressed && { transform: [{ scale: 0.98 }] }]}>
             <Text style={enText(SIZE.sm, FONTS.enMedium, COLORS.white)}>{h}</Text>
-          </View>
+          </Pressable>
         ))}
       </View>
     </SafeAreaView>
@@ -221,9 +259,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 5, height: 52,
   },
   hints: { paddingHorizontal: SPACE.lg, paddingBottom: SPACE.lg, gap: SPACE.sm },
+  // Tappable now → 44pt hit-target floor.
   hintChip: {
+    minHeight: 44, justifyContent: 'center',
     paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm, borderRadius: RADIUS.chip,
     backgroundColor: COLORS.white08,
     borderWidth: 1, borderColor: COLORS.white12,
   },
+  note: {
+    position: 'absolute', bottom: SPACE.md, alignSelf: 'center', maxWidth: '90%',
+    flexDirection: 'row', alignItems: 'center', gap: SPACE.sm,
+    backgroundColor: COLORS.surface2Dark, paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm,
+    borderRadius: RADIUS.chip, borderWidth: 1, borderColor: COLORS.borderDark,
+  },
+  noteText: { fontFamily: FONTS.enBold, fontSize: SIZE.base, color: COLORS.white, flexShrink: 1 },
 });

@@ -71,10 +71,13 @@ export function FamilyMemberCard({ member, onPress, onRemove, pushStatus, onPush
     <Pressable onPress={onPress} style={({ pressed }) => [
       styles.familyCard, SHADOW.soft, pressed && { opacity: 0.85 }
     ]}>
-      <Avatar name={member.name} color={member.color} />
-      <View style={{ flex: 1, marginHorizontal: SPACE.md }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACE.sm }}>
-          <Text numberOfLines={1} style={{ fontFamily: FONTS.enBold, fontSize: SIZE.base, color: COLORS.text, flexShrink: 1 }}>
+      <Avatar name={member.name} color={member.color} size={40} />
+      {/* 360dp rows are width-starved: avatar + channel chip + trash leave the
+          name only ~56px, so "Haleema" ellipsized. Margins/gaps are tightened to
+          the smallest legal tokens and the name takes all remaining space. */}
+      <View style={{ flex: 1, marginHorizontal: SPACE.sm }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACE.xs }}>
+          <Text numberOfLines={1} style={{ fontFamily: FONTS.enBold, fontSize: SIZE.base, color: COLORS.text, flex: 1 }}>
             {member.name}
           </Text>
           <View style={styles.roleBadge}>
@@ -193,10 +196,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface, borderRadius: RADIUS.btn, padding: SPACE.sm,
     borderWidth: 1, borderColor: COLORS.border,
   },
-  removeBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  // 36 visual + hitSlop 8 each side = a 52×44 effective target (law: ≥44×44),
+  // while giving the name 8px more room on width-starved 360dp rows.
+  removeBtn: { width: 36, height: 44, alignItems: 'center', justifyContent: 'center' },
   pushChip: {
     flexDirection: 'row', alignItems: 'center', gap: SPACE.xs, minHeight: 44,
-    paddingHorizontal: SPACE.sm, borderRadius: RADIUS.chip,
+    paddingHorizontal: SPACE.xs, borderRadius: RADIUS.chip,
     backgroundColor: COLORS.surface2, borderWidth: 1, borderColor: COLORS.border,
   },
   pushChipLinked: { backgroundColor: COLORS.primary + '14', borderColor: COLORS.primary + '33' },

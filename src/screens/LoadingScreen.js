@@ -48,7 +48,9 @@ export default function LoadingScreen({ route, navigation }) {
       } catch (e) {
         // ignore — analytics persistence must never block the user
       }
-      if (alive) navigation.replace('Verdict', result);
+      // Forward the scanned text alongside the result so the verdict screen can
+      // quote it in the NCCIA complaint / share report (analyze contract untouched).
+      if (alive) navigation.replace('Verdict', { ...result, messageText: text });
     })();
     return () => { alive = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

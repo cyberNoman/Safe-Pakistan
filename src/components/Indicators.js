@@ -110,9 +110,11 @@ const styles = StyleSheet.create({
 
   agentRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm },
   agentDot: { width: SPACE.sm, height: SPACE.sm, borderRadius: RADIUS.chip },
+  // Rendered only on the HomeScreen blue hero gradient — white for contrast.
+  // The status dot keeps its semantic colour (accent = on, warning = busy).
   agentLabel: {
     fontFamily: FONTS.enSemibold, fontSize: SIZE.xs,
-    color: COLORS.textMuted, letterSpacing: 0.2,
+    color: COLORS.white, letterSpacing: 0.2,
   },
 
   demoBadge: {

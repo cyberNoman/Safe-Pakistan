@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, TextInput, StyleSheet, StatusBar, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInUp, FadeOutDown } from 'react-native-reanimated';
 import { COLORS, FONTS, SIZE, RADIUS, SPACE, SHADOW, gradients } from '@/theme/tokens';
 import { typo } from '@/theme/typography';
 import { DemoBadge } from '@/components/Indicators';
@@ -197,9 +198,10 @@ function guardianReply(text) {
   };
 }
 
-export default function ChatScreen({ navigation }) {
+export default function ChatScreen({ route, navigation }) {
   const [text, setText] = useState('');
   const [suggestions, setSuggestions] = useState(DEFAULT_SUGGESTIONS);
+  const [note, setNote] = useState(null);
   // Per-message feedback: { [botMsgId]: 'yes' | 'no' | 'reported' }.
   const [feedback, setFeedback] = useState({});
   // Clean greeting only — every subsequent reply comes from the scoped KB.
@@ -221,6 +223,26 @@ export default function ChatScreen({ navigation }) {
     setSuggestions(suggestFor(t));
     setText('');
   };
+
+  // Voice Guardian hint chips land here: pre-fill the input (never auto-send) so
+  // the user still presses Send. The param is cleared so a later visit to the
+  // Chat tab does not silently re-type an old question.
+  useEffect(() => {
+    const prefill = route?.params?.prefill;
+    if (!prefill) return;
+    setText(String(prefill));
+    navigation?.setParams?.({ prefill: undefined });
+  }, [route?.params?.prefill]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Honest fallback: there is no speech-to-text engine in this build.
+  const onMicTap = () => setNote('Voice input device par nahi — type karein');
+
+  // Auto-hide the note.
+  useEffect(() => {
+    if (!note) return undefined;
+    const t = setTimeout(() => setNote(null), 2600);
+    return () => clearTimeout(t);
+  }, [note]);
 
   // Feedback lives under the newest bot answer only ("end of conversation").
   const lastId = messages[messages.length - 1]?.id;
@@ -296,7 +318,10 @@ export default function ChatScreen({ navigation }) {
               placeholderTextColor={COLORS.textMuted}
               style={styles.input}
             />
-            <Ionicons name="mic" size={SIZE.lg} color={COLORS.textMuted} />
+            <Pressable onPress={onMicTap} hitSlop={SPACE.sm} style={styles.micBtn}
+              accessibilityLabel="Mic — voice input available nahi, type karein">
+              <Ionicons name="mic" size={SIZE.lg} color={COLORS.textMuted} />
+            </Pressable>
           </View>
           <Pressable onPress={() => submit()} style={[styles.sendBtn, SHADOW.elevated]}>
             <LinearGradient colors={gradients.hero.colors} start={gradients.hero.start} end={gradients.hero.end}
@@ -305,6 +330,15 @@ export default function ChatScreen({ navigation }) {
             <Ionicons name="send" size={SIZE.lg} color={COLORS.white} />
           </Pressable>
         </View>
+
+        {/* Honest mic note — floats above the composer, no layout shift */}
+        {note ? (
+          <Animated.View entering={FadeInUp.duration(200)} exiting={FadeOutDown.duration(200)}
+            style={[styles.note, SHADOW.elevated]}>
+            <Ionicons name="information-circle" size={SIZE.base} color={COLORS.white} />
+            <Text style={styles.noteText}>{note}</Text>
+          </Animated.View>
+        ) : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -430,11 +464,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.dangerBg,
   },
   warnLabelRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.xs, marginBottom: SPACE.xs },
-  suggestionRail: { paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm, gap: SPACE.sm },
+  // alignItems:'center' stops the horizontal rail from stretching each chip to
+  // the full rail height (the "giant empty oval" bug). Fixed 44 = hit-target floor.
+  suggestionRail: { paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm, gap: SPACE.sm, alignItems: 'center' },
   suggestion: {
-    paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm, borderRadius: RADIUS.chip,
+    height: 44, paddingHorizontal: SPACE.md, borderRadius: RADIUS.chip,
     backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border,
-    minHeight: 44, justifyContent: 'center',
+    justifyContent: 'center',
   },
   inputBar: {
     flexDirection: 'row', alignItems: 'center', gap: SPACE.sm,
@@ -451,4 +487,14 @@ const styles = StyleSheet.create({
     width: 46, height: 46, borderRadius: RADIUS.chip, flexShrink: 0,
     overflow: 'hidden', alignItems: 'center', justifyContent: 'center',
   },
+  // Tappable mic → 44pt tall target without widening the composer row.
+  micBtn: { width: SPACE.xl, height: 44, alignItems: 'center', justifyContent: 'center' },
+  // Floats clear of the 62px-tall composer (48 + 16).
+  note: {
+    position: 'absolute', bottom: SPACE.xxl + SPACE.md, alignSelf: 'center', maxWidth: '90%',
+    flexDirection: 'row', alignItems: 'center', gap: SPACE.sm,
+    backgroundColor: COLORS.text, paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm,
+    borderRadius: RADIUS.chip,
+  },
+  noteText: { fontFamily: FONTS.enBold, fontSize: SIZE.sm, color: COLORS.white, flexShrink: 1 },
 });

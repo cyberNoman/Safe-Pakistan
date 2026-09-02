@@ -7,16 +7,17 @@
  *  - Urdu voice narration speaks the verdict after the reveal (expo-speech).
  *  - Scam verdicts auto-fire the Family Shield guardian alert sheet.
  */
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, Alert, StyleSheet, StatusBar } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, ScrollView, Pressable, Alert, StyleSheet, StatusBar, Share } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Speech from 'expo-speech';
 import * as Linking from 'expo-linking';
+import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, withDelay, FadeInUp, FadeOutDown } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withDelay, withRepeat, withSequence, withTiming, FadeInUp, FadeOutDown } from 'react-native-reanimated';
 
-import { COLORS, FONTS, SIZE, RADIUS, SPACE, SHADOW, gradients } from '@/theme/tokens';
+import { COLORS, FONTS, SIZE, RADIUS, SPACE, SHADOW, MOTION, gradients } from '@/theme/tokens';
 import { typo } from '@/theme/typography';
 import ThreatRing from '@/components/ThreatRing';
 import { ScamTypeChip } from '@/components/Indicators';
@@ -45,6 +46,54 @@ function buildAlertMessage(scamType, risk, flags) {
   return `HIFAZAT ALERT: ${scamType} scam SMS detected. Risk ${risk}/100. Red flags: ${f}. Do not reply. - Hifazat App`;
 }
 
+// ── Sender extraction (pure, no backend) ──
+// ScanScreen captures only the message body, so a sender exists only if the user
+// pasted one. We never guess: a bare 4-5 digit number mid-sentence is far more
+// often an amount ("Rs 25000") than a shortcode, and naming it in an NCCIA
+// complaint would be a fabricated accusation. Empty string ⇒ the UI says so.
+function extractSender(text) {
+  const t = String(text || '').trim();
+  // Pakistani mobile — unambiguous anywhere in the text. Tolerates the spaced
+  // forms people paste ("+92 300 1234567", "0300-123 4567"); amounts never match
+  // because the 03…/923… prefix is required.
+  const mobile = t.match(/(?:\+?92[\s-]?|0)3\d{2}[\s-]?\d{3}[\s-]?\d{4}/);
+  if (mobile) return mobile[0].replace(/\D/g, '');
+  // Shortcode only when the paste STARTS with it ("8171: …"), i.e. a real SMS header.
+  const head = t.match(/^(\d{4,5})\s*[:|-]\s*/);
+  if (head) return head[1];
+  return '';
+}
+
+// ── NCCIA complaint report (shared by the mailto link and the share sheet) ──
+function buildNcciaReport({ sender, messageText, score, redFlags }) {
+  const senderLine = sender || 'Not present in pasted message (sender hidden by SMS app)';
+  const flags = Array.isArray(redFlags) && redFlags.length ? redFlags.join(', ') : 'None extracted';
+  const subject = `Hifazat Scam Complaint — ${sender || 'Unknown sender'}`;
+  const body =
+`TO: National Cyber Crime Investigation Agency (NCCIA)
+Date: ${new Date().toLocaleString()}
+
+COMPLAINT DETAILS:
+Suspected Fraudulent SMS Received
+Sender: ${senderLine}
+Message: "${messageText}"
+
+HIFAZAT APP AI ANALYSIS:
+Verdict: SCAM (Risk Score: ${score}/100)
+Red Flags: ${flags}
+Technical Detection: Layer 0 (Sender) + Layer 1 (hifazat-edge) + Layer 2 (Qwen-Max)
+
+VICTIM CONTEXT:
+Vulnerable Target: Elderly family member
+Language: Urdu/Roman Urdu
+
+ACTION REQUESTED:
+Please investigate sender for financial fraud and targeting vulnerable populations.
+
+App Version: Hifazat v1.0 | Model Card: huggingface.co/Noman33/hifazat-edge`;
+  return { subject, body };
+}
+
 export default function VerdictScreen({ route, navigation }) {
   const verdict = route?.params?.verdict ?? 'scam'; // 'scam' | 'suspicious' | 'safe'
   const score   = route?.params?.score   ?? (verdict === 'scam' ? 96 : 12);
@@ -53,6 +102,8 @@ export default function VerdictScreen({ route, navigation }) {
   const redFlags = route?.params?.redFlags ?? ['OTP', 'foran', 'account band'];
   const explanationRoman = route?.params?.explanation_roman_ur ?? '';
   const explanationUrdu  = route?.params?.explanation_urdu ?? '';
+  const messageText      = route?.params?.messageText ?? '';
+  const senderNumber     = extractSender(messageText);
   const insets = useSafeAreaInsets();
 
   const isScam = verdict === 'scam';
@@ -64,6 +115,8 @@ export default function VerdictScreen({ route, navigation }) {
   const [pushState, setPushState] = useState({});  // { [id]: 'sending'|'sent'|'fail' }
   const [smsHot, setSmsHot] = useState({});         // { [id]: true } after a push failure
   const [toast, setToast] = useState(null);
+  const [speaking, setSpeaking] = useState(false);
+  const speechId = useRef(0);   // utterance generation — see speakVerdict()
 
   // Slide-down entrance for the verdict band
   const bandY = useSharedValue(-40);
@@ -72,16 +125,62 @@ export default function VerdictScreen({ route, navigation }) {
   }, []);
   const bandStyle = useAnimatedStyle(() => ({ transform: [{ translateY: bandY.value }] }));
 
-  // Urdu voice narration — speaks the verdict after the reveal.
+  // Urdu voice narration with a guaranteed-sound fallback chain:
+  //   ur-PK Urdu  →  (error / missing engine)  →  en-US Roman Urdu.
+  // expo-speech reports a missing voice engine through onError, so both paths are
+  // covered. The button must make a sound on stage no matter what the device has.
+  const speakRomanFallback = (line, reset) => {
+    try {
+      Speech.speak(line, {
+        language: 'en-US', rate: 0.95, pitch: 1,
+        onDone: reset, onStopped: reset, onError: reset,
+      });
+    } catch (e) {
+      reset();
+    }
+  };
+
   const speakVerdict = () => {
-    const line = isScam
+    const urdu = isScam
       ? (explanationUrdu || 'یہ پیغام جعلی ہے۔ او ٹی پی کبھی شیئر نہ کریں۔')
       : isSusp
         ? 'یہ پیغام مشکوک ہے۔ احتیاط ضرور کریں۔'
         : 'یہ پیغام محفوظ ہے۔';
+    const roman = isScam
+      ? (explanationRoman || 'Yeh message jaali hai. OTP kabhi share na karein.')
+      : isSusp
+        ? 'Yeh message mashkook hai. Ehtiyat zaroor karein.'
+        : 'Yeh message mehfooz hai.';
+    // Generation guard: Speech.stop() fires onStopped for the PREVIOUS utterance.
+    // Without this, a double-tap would clear the new "speaking" state and leave
+    // the button looking idle while audio is still playing.
+    const id = ++speechId.current;
+    const reset = () => { if (speechId.current === id) setSpeaking(false); };
     Speech.stop();
-    Speech.speak(line, { language: 'ur-PK', rate: 0.9, pitch: 1 });
+    setSpeaking(true);
+    try {
+      Speech.speak(urdu, {
+        language: 'ur-PK', rate: 0.9, pitch: 1,
+        onDone: reset, onStopped: reset,
+        onError: () => speakRomanFallback(roman, reset),
+      });
+    } catch (e) {
+      speakRomanFallback(roman, reset);
+    }
   };
+
+  // Speaking feedback — the icon pulses while audio plays, reverts on onDone.
+  const pulse = useSharedValue(1);
+  useEffect(() => {
+    pulse.value = speaking
+      ? withRepeat(withSequence(
+          withTiming(1.15, { duration: MOTION.base }),
+          withTiming(1, { duration: MOTION.base }),
+        ), -1, true)
+      : 1;
+  }, [speaking]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
+
   useEffect(() => {
     let t;
     (async () => {
@@ -156,6 +255,59 @@ export default function VerdictScreen({ route, navigation }) {
     }
   };
 
+  // ── Real action buttons — no dead taps ─────────────────────────────────────
+  const nccia = buildNcciaReport({
+    sender: senderNumber,
+    messageText: messageText || '(message text not captured for this scan)',
+    score,
+    redFlags,
+  });
+
+  // (a) Sender Block — copy the number, open the native SMS app, then say
+  //     honestly that the block itself happens in the phone's own SMS settings.
+  const onBlockSender = async () => {
+    if (!senderNumber) {
+      setToast('Is SMS mein sender number nahi mila — NCCIA Shikayat bhejein');
+      return;
+    }
+    try {
+      await Clipboard.setStringAsync(senderNumber);
+      setToast('Number copy ho gaya');
+    } catch (e) {
+      setToast('Number copy nahi ho saka');
+    }
+    try {
+      await Linking.openURL(`sms:${senderNumber}`);
+    } catch (e) {
+      setToast('SMS app nahi khula — number copy hai');
+    }
+  };
+
+  // (b) NCCIA Shikayat — pre-filled complaint email to the cyber-crime agency.
+  const onNccia = async () => {
+    const url = 'mailto:complaint@nccia.gov.pk'
+      + `?subject=${encodeURIComponent(nccia.subject)}`
+      + `&body=${encodeURIComponent(nccia.body)}`;
+    try {
+      await Linking.openURL(url);
+    } catch (e) {
+      setToast('Email app nahi khula — Report Share use karein');
+    }
+  };
+
+  // (c) Report Share — the same report as plain text via the native sheet
+  //     (WhatsApp / Email / any installed target).
+  const onShareReport = async () => {
+    try {
+      await Share.share({
+        message: `${nccia.subject}\n\n${nccia.body}`,
+        title: nccia.subject,
+      });
+    } catch (e) {
+      setToast('Share sheet nahi khuli');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle="light-content" />
@@ -170,9 +322,17 @@ export default function VerdictScreen({ route, navigation }) {
               <Pressable onPress={() => navigation?.goBack?.()} style={styles.iconBtn}>
                 <Ionicons name="chevron-back" size={SIZE.xl} color={COLORS.white} />
               </Pressable>
-              <Text style={styles.bandLabel}>SCAN COMPLETE</Text>
-              <Pressable onPress={speakVerdict} style={styles.iconBtn} accessibilityLabel="Verdict dohraein">
-                <Ionicons name="volume-high" size={SIZE.xl} color={COLORS.white} />
+              <Text style={styles.bandLabel}>{speaking ? 'AWAZ CHAL RAHI HAI' : 'SCAN COMPLETE'}</Text>
+              <Pressable
+                onPress={speakVerdict}
+                style={[styles.iconBtn, speaking && styles.iconBtnLive]}
+                accessibilityLabel={speaking ? 'Awaz chal rahi hai — playing' : 'Verdict dohraein'}
+              >
+                <Animated.View style={pulseStyle}>
+                  <Ionicons
+                    name={speaking ? 'volume-high' : 'volume-medium'}
+                    size={SIZE.xl} color={COLORS.white} />
+                </Animated.View>
               </Pressable>
             </View>
 
@@ -222,21 +382,45 @@ export default function VerdictScreen({ route, navigation }) {
         <View style={styles.sheetHandle} />
         {isScam ? (
           <>
-            <Pressable style={[styles.btn, { backgroundColor: COLORS.danger }]}>
+            <Pressable
+              onPress={onBlockSender}
+              style={({ pressed }) => [styles.btn, { backgroundColor: COLORS.danger },
+                pressed && { transform: [{ scale: 0.98 }] }]}
+            >
               <Ionicons name="close-circle" size={SIZE.lg} color={COLORS.white} />
               <Text style={styles.btnText}>Sender Block Karein</Text>
             </Pressable>
+            {/* Honest 2-line note: Android exposes no API for one app to block a
+                sender inside another app's SMS settings. We copy + open + say so. */}
+            <Text style={styles.blockNote}>
+              Apne phone ki SMS settings mein is number ko block karein.{'\n'}
+              Hifazat az-khud block nahi kar sakti — yeh phone ki setting hai.
+            </Text>
             <View style={{ flexDirection: 'row', gap: SPACE.sm }}>
               <Pressable
                 onPress={() => setAlertVisible(true)}
-                style={[styles.btn, styles.btnSm, { backgroundColor: COLORS.primary, flex: 1 }]}
+                style={({ pressed }) => [styles.btn, styles.btnSm,
+                  { backgroundColor: COLORS.primary, flex: 1 },
+                  pressed && { transform: [{ scale: 0.98 }] }]}
               >
                 <Text style={[styles.btnText, { fontSize: SIZE.sm }]}>Family Ko Batain</Text>
               </Pressable>
-              <Pressable style={[styles.btn, styles.btnSm, styles.btnOutline, { flex: 1 }]}>
+              <Pressable
+                onPress={onNccia}
+                style={({ pressed }) => [styles.btn, styles.btnSm, styles.btnOutline, { flex: 1 },
+                  pressed && { transform: [{ scale: 0.98 }] }]}
+              >
                 <Text style={[styles.btnText, { color: COLORS.text, fontSize: SIZE.sm }]}>NCCIA Shikayat</Text>
               </Pressable>
             </View>
+            <Pressable
+              onPress={onShareReport}
+              style={({ pressed }) => [styles.btn, styles.btnSm, styles.btnOutline,
+                pressed && { transform: [{ scale: 0.98 }] }]}
+            >
+              <Ionicons name="share-outline" size={SIZE.base} color={COLORS.text} />
+              <Text style={[styles.btnText, { color: COLORS.text, fontSize: SIZE.sm }]}>Report Share Karein</Text>
+            </Pressable>
           </>
         ) : isSusp ? (
           <Pressable onPress={() => setAlertVisible(true)} style={[styles.btn, { backgroundColor: COLORS.warning }]}>
@@ -484,6 +668,13 @@ const styles = StyleSheet.create({
     height: 50, borderRadius: RADIUS.btn,
   },
   btnSm: { height: 44 },
+  // Speaking state — accent ring + tint so the Awaz button reads "live" on stage.
+  iconBtnLive: { backgroundColor: COLORS.accent + '33', borderColor: COLORS.accent },
+  // Honest block note is advice text → verdict-screen floor (≥17pt) applies.
+  blockNote: {
+    fontFamily: FONTS.enMedium, fontSize: SIZE.lg, color: COLORS.textMuted,
+    lineHeight: SIZE.lg * 1.35, textAlign: 'center',
+  },
   btnOutline: { backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border },
   btnText: { fontFamily: FONTS.enExtra, fontSize: SIZE.base, color: COLORS.white },
   // Family alert sheet — real SMS/WhatsApp + best-effort push
