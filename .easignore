@@ -4,6 +4,13 @@ node_modules/
 backend/
 .expo/
 
+# Never archive a stale native project: EAS must run `expo prebuild` from
+# app.json so config plugins (expo-build-properties / usesCleartextTraffic)
+# are applied to the generated manifest.
+android/
+ios/
+.verify-dist/
+
 # Explicitly include assets/ (icon/splash required by prebuild)
 !assets/
 dist/

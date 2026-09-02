@@ -3,7 +3,8 @@
  * Every call degrades gracefully: network/API failure never blocks the user.
  *
  * DEMO MODE (hackathon):
- *  - API_BASE points at the deployed Cloud Run service.
+ *  - API_BASE points at the laptop's LAN IP on the phone's hotspot (demo
+ *    build). The production Cloud Run URL is kept in the comment below.
  *  - DEMO_MODE.offlineOnly = true → skip the network entirely; the on-device
  *    rule engine answers instantly. Flip back to false for live LLM verdicts.
  *  - analyzeText() races the backend against MAX_WAIT_BACKEND_MS; if the LLM
@@ -11,9 +12,11 @@
  */
 import { offlineAnalyze } from '@/services/offlineEngine';
 
-// Deployed Hifazat backend (Cloud Run). For the Android emulator use
-// http://10.0.2.2:3000 against a locally-running backend instead.
-const API_BASE = 'https://sentinel-pk-api-315679408915.asia-south1.run.app';
+// DEMO-BUILD: the APK must reach the cascade running on this laptop over the
+// phone's hotspot — Cloud Run does not serve /family/* yet. If the hotspot IP
+// changes, update this value and rebuild (or fall back to Expo Go).
+// Production value: 'https://sentinel-pk-api-315679408915.asia-south1.run.app'
+const API_BASE = 'http://192.168.100.116:3000'; // DEMO-BUILD
 const TIMEOUT_MS = 6000;
 
 export const DEMO_MODE = { offlineOnly: false };

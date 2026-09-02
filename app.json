@@ -33,7 +33,18 @@
     "plugins": [
       "expo-font",
       "expo-av",
-      "expo-image-picker"
+      "expo-image-picker",
+      // DEMO-BUILD: allow cleartext HTTP so the release APK can reach the
+      // cascade on the laptop's LAN IP over the phone hotspot. Production
+      // serves https (Cloud Run) — remove this entry when API_BASE reverts.
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {
