@@ -74,6 +74,7 @@
   <div class="badges">
     <span class="badge b">Fine-tuned hifazat-edge on Hugging Face</span>
     <span class="badge b">Beats a regex baseline on every metric — 155 unseen messages</span>
+    <span class="badge g">Offline-first · family-aware</span>
     <span class="badge">Urdu · Roman Urdu · English</span>
   </div>
 </section>
@@ -108,6 +109,7 @@
       <p class="li">• Explanations in <b>English + Roman Urdu + Urdu Nastaliq</b></p>
       <p class="li">• <b>Voice narration</b> for low-literacy users (ur-PK TTS)</p>
       <p class="li">• <b>Works with zero internet</b> — the verdict floor lives on-device</p>
+      <p class="li">• <b>The house warns itself</b> — one tap alerts family by SMS, WhatsApp or push</p>
     </div>
     <div style="display:flex;gap:16px;flex:none">
       <div class="mini"><h4>SCAN</h4><div style="height:8px;border-radius:4px;background:var(--srf2);margin:4px 8px"></div><div style="height:8px;border-radius:4px;background:var(--srf2);margin:4px 8px"></div><div style="height:8px;border-radius:4px;background:var(--srf2);margin:4px 8px"></div><span class="pill" style="border:1px solid var(--blue);color:var(--blueLt)">paste / speak</span></div>
@@ -229,7 +231,7 @@
 <section class="slide">
   <div class="kicker">Built With AI, At AI Speed</div>
   <h2>Co-built with Qoder — in days, not months.</h2>
-  <p>App (<b>13 screens</b>) + backend cascade + training pipeline, co-built with
+  <p>App (<b>14 screens</b>) + backend cascade + training pipeline, co-built with
     <b class="blue">Qoder, the AI coding agent</b>. Automated verification:
     <b class="green">4/4 cascade harness PASS</b> · documentation-integrity audit.</p>
   <div class="badges" style="margin-top:18px">
@@ -238,6 +240,20 @@
   </div>
   <div class="qoder"><b>"Humans made every product decision. AI executed them at speed."</b></div>
   <div class="qoder" style="border-color:var(--green)">The Qwen family powers both the builder and the product.</div>
+</section>
+
+<!-- 8B · WHAT'S NEW — speaker note: this is what you will see live, not a roadmap item. -->
+<section class="slide">
+  <div class="kicker">What's New · This Build</div>
+  <h2>The house now warns itself.</h2>
+  <div class="row">
+    <div class="card"><h3 class="green">Real-time Family Alert</h3><p class="li"><b>PRIMARY:</b> a zero-backend <b>sms: / wa.me</b> deep link opens the native app <b>pre-filled</b>, with <b>03XX… normalised to 923XX…</b>. <b>SECONDARY:</b> Expo push relayed by the backend — enabled only when that member registered a real token.</p></div>
+    <div class="card"><h3 class="blue">Push-ready enrolment</h3><p class="li">Permission → <b>getExpoPushTokenAsync()</b> → <b>POST /family/register</b>. If the token call throws, the app says so plainly and marks the member <b>SMS only</b>. Push is never faked.</p></div>
+    <div class="card"><h3 class="green">Scoped Guardian chat</h3><p class="li">Answers from <b>pre-verified facts only</b> — no open-ended LLM call from chat. Out of scope it says <i>"Yeh meri knowledge mein nahi — NCCIA 1799"</i> instead of inventing legal advice.</p></div>
+    <div class="card"><h3 class="blue">Profile + real analytics</h3><p class="li">Notification prefs, scan-history auto-delete and <b>JSON export</b> of your own data. Charts are driven only by <b>actual stored scans</b> — no seeded mock data, honest empty states on a fresh install.</p></div>
+  </div>
+  <div class="foot">On <b>sent: 0</b> the app toasts <i>"Push fail hua — SMS use karein"</i> and keeps the SMS path highlighted.
+    Any surface still standing in for a production integration is labelled <b>DEMO · SIMULATED</b> on-screen, so a judge is never misled.</div>
 </section>
 
 <!-- 9 · DEMO READINESS — speaker note: "We audited ourselves harder than you will." -->
@@ -251,6 +267,8 @@
     <div><span>✓</span>/health pre-stage check</div>
     <div><span>✓</span>Warm-up protocol before stage</div>
     <div><span>✓</span>Quota shield active</div>
+    <div><span>✓</span>Two-phone family-alert run scripted</div>
+    <div><span>✓</span>Push relay round-trip hits exp.host</div>
   </div>
   <div style="margin-top:16px;background:var(--srf);border:1px solid var(--line);border-radius:12px;padding:12px 18px;font-family:Consolas,ui-monospace,monospace;font-size:12.5px;line-height:1.7;color:var(--mut);max-width:1000px;white-space:pre">PASS | real Ollama hifazat-edge | model_used=FT_MODEL verdict=scam score=99 conf=99
 PASS | gate: conf 50 escalates to L2 | model_used=QWEN_MAX verdict=scam score=95 conf=98
@@ -279,9 +297,11 @@ PASS | blackout: L3 RULES floor | model_used=RULES verdict=scam score=96 conf=88
   <h2>From hackathon to national infrastructure.</h2>
   <div class="row">
     <div class="card"><h3 class="red">P0</h3><p class="li"><b>Supabase auth + scan history</b> — the trust infrastructure.</p></div>
-    <div class="card"><h3 class="orange">P1</h3><p class="li"><b>Family Shield real-time alerts</b> — the house warns itself.</p></div>
+    <div class="card"><h3 class="orange">P1</h3><p class="li"><b>Family Shield at production scale</b> — Alibaba Cloud Mobile Push + FCM.</p></div>
     <div class="card"><h3 class="blue">P2</h3><p class="li"><b>Telco / bank integrations</b> — the white-label cascade goes live.</p></div>
   </div>
+  <div class="foot"><b class="green">Shipped this build:</b> real-time family alerts — an SMS / WhatsApp deep link
+    plus an Expo push relay. P1 is now about <b>scale</b>, not about whether it exists.</div>
   <div class="qoder" style="border-color:var(--green)"><b class="green">Feedback flywheel:</b>
     every user correction becomes v2 training data. The shield gets smarter every single day.</div>
 </section>
@@ -294,6 +314,9 @@ PASS | blackout: L3 RULES floor | model_used=RULES verdict=scam score=96 conf=88
   <p class="li">• <b>Offline safe precision 35–40%</b> — a conservative floor that over-flags</p>
   <p class="li">• <b>±3% accuracy variance</b>, up to ±7% on safe precision</p>
   <p class="li">• <b>Suspicious-class recall weak</b> — the smallest training slice; v2 needs more ambiguous examples</p>
+  <p class="li">• <b>Family alerts need the laptop backend</b> on the same hotspot — Cloud Run does not serve <b>/family/*</b> yet</p>
+  <p class="li">• <b>The demo APK allows cleartext HTTP</b> to reach the laptop over LAN; production is <b>https</b>. Flagged <b>// DEMO-BUILD</b></p>
+  <p class="li">• <b>Real push needs a dev or preview build</b> — Expo Go cannot mint a token, so the app falls back to SMS and says why</p>
 </section>
 
 <!-- 12 · CLOSE -->
