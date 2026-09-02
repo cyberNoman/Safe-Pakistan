@@ -86,3 +86,36 @@ export async function alertGuardian(payload) {
   }
   return { sent: true, push_id: 'mock_' + Date.now() };
 }
+
+// ── ADDITIVE: stage-ready family alert ───────────────────────────────────
+// These two helpers reuse the same post()/API_BASE plumbing but DO NOT touch
+// analyzeText, the /analyze request-response shape, DEMO_MODE, or the 3s race.
+// Both are best-effort: any failure resolves to a neutral result so the UI can
+// fall back to the zero-backend SMS/WhatsApp deep link. Push is never faked.
+
+/**
+ * Register this device's Expo push token under a familyCode.
+ * Returns { ok, registered } — { ok:false } on any network/HTTP failure.
+ */
+export async function registerFamilyDevice({ familyCode, name, role, token }) {
+  try {
+    const j = await post('/family/register', { familyCode, name, role, token });
+    return { ok: !!(j && j.ok), registered: (j && j.registered) || 0 };
+  } catch (e) {
+    return { ok: false, error: 'register_failed' };
+  }
+}
+
+/**
+ * Relay a guardian alert to the family's registered tokens via the backend
+ * (which forwards to the Expo push service). Returns { sent, failed }; on ANY
+ * failure resolves to { sent:0 } so the caller keeps the SMS path highlighted.
+ */
+export async function sendFamilyAlert(payload) {
+  try {
+    const j = await post('/family/alert', payload);
+    return { sent: Number(j && j.sent) || 0, failed: Number(j && j.failed) || 0 };
+  } catch (e) {
+    return { sent: 0, failed: 0, error: 'alert_failed' };
+  }
+}

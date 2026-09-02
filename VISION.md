@@ -1,6 +1,7 @@
 # VISION.md — Safe Pakistan V2
 
 Demo build simulates family delivery; production bus is sprint one.
+Demo push relay = Expo dev push; production = Alibaba Cloud Mobile Push + FCM (sprint one).
 
 The hackathon APK is a credible, self-contained demo: the cascade (L0→L3) is real,
 scan analytics are real (persisted on-device), and the surfaces that are still

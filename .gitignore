@@ -10,6 +10,9 @@ web-build/
 backend/.env
 *.apk
 
+# Runtime family-push token store (device-scoped Expo tokens — never commit).
+backend/family.json
+
 # Fine-tuned model weights (~1GB) — exceeds GitHub's 100MB file limit and is
 # not a secret but must never be in git. Distribute via Ollama/HF registry.
 backend/hifazat-edge.gguf

@@ -16,6 +16,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, TextInput, Alert, StyleSheet, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp, FadeOutDown } from 'react-native-reanimated';
 import { COLORS, FONTS, SIZE, RADIUS, SPACE, SHADOW, gradients } from '@/theme/tokens';
@@ -23,6 +25,7 @@ import { typo } from '@/theme/typography';
 import { Avatar, SectionHeader, FamilyMemberCard, EmptyState } from '@/components/Cards';
 import { BottomSheet } from '@/components/Overlays';
 import { LocalDBService } from '@/services/LocalDBService';
+import { registerFamilyDevice } from '@/services/api';
 
 // Avatar colours cycle through brand tokens only (no hardcoded hex).
 const PALETTE = [COLORS.primary, COLORS.accentDk, COLORS.warning, COLORS.primaryLt, COLORS.accent];
@@ -34,6 +37,9 @@ export default function FamilyScreen() {
   const [notifyCount, setNotifyCount] = useState(0);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [toast, setToast] = useState(null);
+  const [familyCode, setFamilyCode] = useState('');
+  const [devicePush, setDevicePush] = useState(null);
+  const [pushBusy, setPushBusy] = useState(false);
 
   // Add-member form state.
   const [name, setName] = useState('');
@@ -43,6 +49,8 @@ export default function FamilyScreen() {
   const load = useCallback(async () => {
     setMembers(await LocalDBService.getFamilyMembers());
     setNotifyCount(await LocalDBService.getNotifyCount());
+    setFamilyCode(await LocalDBService.getFamilyCode());
+    setDevicePush(await LocalDBService.getDevicePush());
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -61,10 +69,66 @@ export default function FamilyScreen() {
       Alert.alert('Naam zaroori hai', 'Member ka naam likhein.');
       return;
     }
+    if (!phone.trim()) {
+      Alert.alert('Phone zaroori hai', 'Member ka phone number likhein — SMS alert isi par jata hai.');
+      return;
+    }
     const next = await LocalDBService.addFamilyMember({ name, phone, role });
     setMembers(next);
     setSheetOpen(false);
     setToast('Member add ho gaya');
+  };
+
+  // ── Real device push (best-effort, NEVER faked) ──
+  // permission → getExpoPushTokenAsync → backend /family/register. If the token
+  // cannot be fetched (Expo Go without a dev build, permission denied, or no
+  // EAS projectId) we say so honestly and the member stays "SMS only".
+  const ensureDeviceToken = async () => {
+    try {
+      const perm = await Notifications.requestPermissionsAsync();
+      if (!perm?.granted) return { error: 'permission' };
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+      const t = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+      return t ? { token: t } : { error: 'unavailable' };
+    } catch (e) {
+      return { error: 'unavailable' };
+    }
+  };
+
+  const pushFailNote = (err) => setToast(err === 'permission'
+    ? 'Push permission nahi mili — SMS alert use karein'
+    : 'Push is build mein available nahi — SMS alert use karein');
+
+  // Device-level button: make THIS device push-ready.
+  const makePushReady = async () => {
+    if (pushBusy) return;
+    setPushBusy(true);
+    const code = await LocalDBService.getFamilyCode();
+    const r = await ensureDeviceToken();
+    if (r.error) { setPushBusy(false); pushFailNote(r.error); return; }
+    const rec = await LocalDBService.setDevicePush({ token: r.token, familyCode: code, name: 'This Device', role: 'Parent' });
+    setDevicePush(rec);
+    await registerFamilyDevice({ familyCode: code, name: rec.name, role: rec.role, token: r.token });
+    setPushBusy(false);
+    setToast('Device push-ready hai');
+  };
+
+  // Tap a member's "SMS only" chip → link this device's token to that member.
+  const linkMember = async (m) => {
+    if (m.token || pushBusy) return;
+    setPushBusy(true);
+    const code = await LocalDBService.getFamilyCode();
+    let token = devicePush?.token;
+    if (!token) {
+      const r = await ensureDeviceToken();
+      if (r.error) { setPushBusy(false); pushFailNote(r.error); return; }
+      token = r.token;
+      setDevicePush(await LocalDBService.setDevicePush({ token, familyCode: code, name: m.name, role: m.role }));
+    }
+    setMembers(await LocalDBService.setMemberToken(m.id, token));
+    await registerFamilyDevice({ familyCode: code, name: m.name, role: m.role, token });
+    setPushBusy(false);
+    setToast(`${m.name} push-linked ho gaya`);
   };
 
   const removeMember = (m) => {
@@ -138,6 +202,13 @@ export default function FamilyScreen() {
             </View>
           )}
 
+          {familyCode ? (
+            <View style={styles.codeRow}>
+              <Text style={styles.codeLabel}>FAMILY CODE</Text>
+              <Text style={styles.codeValue}>{familyCode}</Text>
+            </View>
+          ) : null}
+
           {notifyCount > 0 && (
             <View style={styles.notifyCountRow}>
               <Ionicons name="notifications-outline" size={SIZE.sm} color={COLORS.white} />
@@ -155,6 +226,19 @@ export default function FamilyScreen() {
           <Text style={styles.notifyBtnText}>Notify Family</Text>
         </Pressable>
 
+        {/* Make THIS device push-ready — real Expo token → backend register */}
+        <Pressable onPress={makePushReady} disabled={pushBusy}
+          style={({ pressed }) => [styles.pushReadyBtn, pressed && { transform: [{ scale: 0.98 }] }]}>
+          <Ionicons
+            name={devicePush ? 'checkmark-circle' : 'notifications-outline'}
+            size={SIZE.lg} color={devicePush ? COLORS.accentDk : COLORS.primary} />
+          <Text style={[styles.pushReadyText, devicePush && { color: COLORS.accentDk }]}>
+            {pushBusy ? 'Token mangwa rahe hain…'
+              : devicePush ? 'Yeh device push-ready hai'
+              : 'Is device ko push-ready banayein'}
+          </Text>
+        </Pressable>
+
         {/* Members */}
         <View style={{ marginTop: SPACE.md }}>
           <SectionHeader title="Members" urduTitle="ارکان" action="Add" onActionPress={openAdd} />
@@ -164,6 +248,8 @@ export default function FamilyScreen() {
                 <FamilyMemberCard
                   key={m.id}
                   member={{ id: m.id, name: m.name, role: m.role, phone: m.phone, color: PALETTE[i % PALETTE.length] }}
+                  pushStatus={m.token ? 'linked' : 'sms'}
+                  onPushAction={() => linkMember(m)}
                   onRemove={() => removeMember(m)}
                 />
               ))}
@@ -236,6 +322,20 @@ const styles = StyleSheet.create({
   moreBubbleText: { fontFamily: FONTS.enExtra, fontSize: SIZE.xs, color: COLORS.white },
   notifyCountRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.xs, marginTop: SPACE.sm },
   notifyCountText: { fontFamily: FONTS.enSemibold, fontSize: SIZE.xs, color: COLORS.white80 },
+  codeRow: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACE.sm, marginTop: SPACE.md,
+    alignSelf: 'flex-start', paddingHorizontal: SPACE.md, paddingVertical: SPACE.xs,
+    borderRadius: RADIUS.chip, backgroundColor: COLORS.white20,
+    borderWidth: 1, borderColor: COLORS.white + '40',
+  },
+  codeLabel: { fontFamily: FONTS.enExtra, fontSize: SIZE.xs, color: COLORS.white80, letterSpacing: 1 },
+  codeValue: { fontFamily: FONTS.enBlack, fontSize: SIZE.base, color: COLORS.white, letterSpacing: 1.5 },
+  pushReadyBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACE.sm,
+    marginTop: SPACE.sm, minHeight: 52, borderRadius: RADIUS.btn,
+    backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border,
+  },
+  pushReadyText: { fontFamily: FONTS.enExtra, fontSize: SIZE.base, color: COLORS.primary },
   notifyBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACE.sm,
     marginTop: SPACE.md, minHeight: 52, borderRadius: RADIUS.btn, backgroundColor: COLORS.primary,

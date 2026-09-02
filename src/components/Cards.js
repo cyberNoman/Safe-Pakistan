@@ -61,8 +61,10 @@ export function StatCard({ value, label, urduLabel, color = COLORS.primary, icon
 // ── FamilyMemberCard ─────────────────────────────────────────
 // `member`: { name, color, role } + either simulated { status, lastProtected }
 // or a real roster member { phone }. `onRemove` renders a neutral trash button
-// (never red — red is the scam verdict only). Backward-compatible.
-export function FamilyMemberCard({ member, onPress, onRemove }) {
+// (never red — red is the scam verdict only). `pushStatus` ('linked'|'sms')
+// renders a channel chip; when 'sms' and `onPushAction` is set the chip is a
+// 44pt target that links this device's push token. Backward-compatible.
+export function FamilyMemberCard({ member, onPress, onRemove, pushStatus, onPushAction }) {
   const subtitle = member.subtitle
     || (member.lastProtected ? `Last protected: ${member.lastProtected}` : (member.phone || ''));
   return (
@@ -85,6 +87,21 @@ export function FamilyMemberCard({ member, onPress, onRemove }) {
           </Text>
         ) : null}
       </View>
+      {pushStatus ? (
+        <Pressable
+          onPress={pushStatus === 'sms' ? onPushAction : undefined}
+          disabled={pushStatus !== 'sms' || !onPushAction}
+          style={[styles.pushChip, pushStatus === 'linked' && styles.pushChipLinked]}>
+          <Ionicons
+            name={pushStatus === 'linked' ? 'notifications' : 'chatbox-ellipses-outline'}
+            size={SIZE.xs}
+            color={pushStatus === 'linked' ? COLORS.primary : COLORS.textMuted} />
+          <Text style={[styles.pushChipText,
+            { color: pushStatus === 'linked' ? COLORS.primary : COLORS.textMuted }]}>
+            {pushStatus === 'linked' ? 'PUSH LINKED' : 'SMS ONLY'}
+          </Text>
+        </Pressable>
+      ) : null}
       {member.status ? (
         <StatusPill kind={member.status === 'safe' ? 'safe' : 'off'}>
           {member.status === 'safe' ? 'PROTECTED' : 'OFFLINE'}
@@ -177,6 +194,13 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.border,
   },
   removeBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  pushChip: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACE.xs, minHeight: 44,
+    paddingHorizontal: SPACE.sm, borderRadius: RADIUS.chip,
+    backgroundColor: COLORS.surface2, borderWidth: 1, borderColor: COLORS.border,
+  },
+  pushChipLinked: { backgroundColor: COLORS.primary + '14', borderColor: COLORS.primary + '33' },
+  pushChipText: { fontFamily: FONTS.enExtra, fontSize: SIZE.xs, letterSpacing: 0.4 },
   roleBadge: {
     paddingHorizontal: SPACE.xs, paddingVertical: SPACE.xs / 2,
     backgroundColor: COLORS.surface2, borderRadius: RADIUS.sm,

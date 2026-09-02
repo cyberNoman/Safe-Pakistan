@@ -8,6 +8,9 @@ require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 // hold-out eval uses for its baseline column (provably one implementation).
 const { classify } = require('./rules-classifier');
 
+// `fs` backs the additive family-push token store (family.json) further below.
+const fs = require('fs');
+
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -315,6 +318,95 @@ app.post('/family/pair', (req, res) => {
 app.post('/alerts/guardian', (req, res) => {
   console.log('[PUSH]', req.body);
   res.json({ sent: true, push_id: 'push_' + Date.now() });
+});
+
+// --------------------------- Family push relay ------------------------------
+// ADDITIVE (stage-ready family alert). Does NOT touch the L0-L3 cascade, the
+// confidence gate, or the /analyze client contract above. Tokens are stored
+// per familyCode in memory and mirrored to backend/family.json (gitignored —
+// an Expo push token is a device-scoped credential and must never be committed).
+const FAMILY_FILE = require('path').join(__dirname, 'family.json');
+// familyCode -> [ { name, role, token, ts } ]
+const familyTokens = new Map();
+
+function loadFamilyTokens() {
+  try {
+    const obj = JSON.parse(fs.readFileSync(FAMILY_FILE, 'utf8'));
+    for (const [code, arr] of Object.entries(obj)) {
+      if (Array.isArray(arr)) familyTokens.set(code, arr);
+    }
+  } catch (e) { /* no file yet — first run */ }
+}
+function saveFamilyTokens() {
+  try {
+    const obj = {};
+    for (const [code, arr] of familyTokens.entries()) obj[code] = arr;
+    fs.writeFileSync(FAMILY_FILE, JSON.stringify(obj, null, 2));
+  } catch (e) { console.log('[family] persist failed:', e.message); }
+}
+loadFamilyTokens();
+
+// Register a device's Expo push token under a familyCode (deduped by token).
+app.post('/family/register', (req, res) => {
+  try {
+    const { familyCode, name, role, token } = req.body || {};
+    if (!familyCode || !token) {
+      return res.status(400).json({ ok: false, error: 'familyCode and token are required' });
+    }
+    const list = familyTokens.get(familyCode) || [];
+    const entry = {
+      name: String(name || 'Member'), role: String(role || 'Other'),
+      token: String(token), ts: Date.now(),
+    };
+    const i = list.findIndex(m => m.token === entry.token);
+    if (i >= 0) list[i] = entry; else list.push(entry);
+    familyTokens.set(familyCode, list);
+    saveFamilyTokens();
+    console.log(`[family] register code=${familyCode} name=${entry.name} role=${entry.role}` +
+      ` token=${entry.token.slice(0, 16)}… total=${list.length}`);
+    res.json({ ok: true, familyCode, registered: list.length });
+  } catch (e) {
+    console.log('[family] register error:', e.message);
+    res.status(500).json({ ok: false, error: 'register_failed' });
+  }
+});
+
+// Relay a guardian alert to every token registered under the familyCode via the
+// Expo push service. Fully try/caught: any failure resolves to {sent:0} so the
+// client falls back to the SMS/WhatsApp deep link (the reliable, zero-backend
+// path). This is the DEMO relay — production is Alibaba Cloud Mobile Push + FCM.
+app.post('/family/alert', async (req, res) => {
+  const { familyCode, from, verdict, risk, flags } = req.body || {};
+  try {
+    const list = familyTokens.get(familyCode) || [];
+    if (!list.length) {
+      console.log(`[family] alert code=${familyCode} — no tokens registered`);
+      return res.json({ sent: 0, failed: 0, reason: 'no_tokens' });
+    }
+    const body = `${verdict} SMS — risk ${risk}/100. Do not reply. Call now.`;
+    let sent = 0, failed = 0;
+    for (const m of list) {
+      try {
+        const r = await fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            to: m.token, title: 'HIFAZAT ALERT', body, data: { verdict, risk },
+          }),
+        });
+        const j = await r.json().catch(() => ({}));
+        const d = Array.isArray(j.data) ? j.data[0] : j.data;
+        if (r.ok && d && d.status === 'ok') sent++;
+        else { failed++; console.log('[family] push ticket error:', d && d.message); }
+      } catch (e) { failed++; console.log('[family] push send threw:', e.message); }
+    }
+    console.log(`[family] alert code=${familyCode} from=${from} verdict=${verdict} risk=${risk}` +
+      ` flags=${JSON.stringify(flags)} → sent=${sent} failed=${failed}`);
+    res.json({ sent, failed });
+  } catch (e) {
+    console.log('[family] alert error:', e.message);
+    res.json({ sent: 0, failed: 0, error: 'alert_failed' });
+  }
 });
 
 if (require.main === module) {

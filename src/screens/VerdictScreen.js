@@ -8,23 +8,42 @@
  *  - Scam verdicts auto-fire the Family Shield guardian alert sheet.
  */
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, StatusBar } from 'react-native';
+import { View, Text, ScrollView, Pressable, Alert, StyleSheet, StatusBar } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Speech from 'expo-speech';
+import * as Linking from 'expo-linking';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, withDelay } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withDelay, FadeInUp, FadeOutDown } from 'react-native-reanimated';
 
 import { COLORS, FONTS, SIZE, RADIUS, SPACE, SHADOW, gradients } from '@/theme/tokens';
 import { typo } from '@/theme/typography';
 import ThreatRing from '@/components/ThreatRing';
-import { ScamTypeChip, DemoBadge } from '@/components/Indicators';
+import { ScamTypeChip } from '@/components/Indicators';
 import { BottomSheet } from '@/components/Overlays';
-import { Avatar } from '@/components/Cards';
-import { alertGuardian } from '@/services/api';
+import { Avatar, EmptyState } from '@/components/Cards';
+import { sendFamilyAlert } from '@/services/api';
 import { LocalDBService } from '@/services/LocalDBService';
 // ScamTypeChip is available for the Library/Screenshot screens; the scam verdict
 // deliberately uses only the evidence chips to keep the card inside one screen.
+
+// Avatar colours cycle through brand tokens only (no hardcoded hex).
+const PALETTE = [COLORS.primary, COLORS.accentDk, COLORS.warning, COLORS.primaryLt, COLORS.accent];
+
+// ── Family-alert deep-link helpers (pure, zero backend) ──
+// Normalize a Pakistani number to intl form for wa.me / sms: (03XX… → 923XX…).
+function toIntl(raw) {
+  let n = String(raw || '').replace(/\D/g, '');
+  if (n.startsWith('0092')) n = '92' + n.slice(4);
+  else if (n.startsWith('0')) n = '92' + n.slice(1);
+  else if (n && !n.startsWith('92')) n = '92' + n;
+  return n;
+}
+// The alert body sent verbatim over SMS / WhatsApp.
+function buildAlertMessage(scamType, risk, flags) {
+  const f = Array.isArray(flags) ? flags.join(', ') : String(flags || '');
+  return `HIFAZAT ALERT: ${scamType} scam SMS detected. Risk ${risk}/100. Red flags: ${f}. Do not reply. - Hifazat App`;
+}
 
 export default function VerdictScreen({ route, navigation }) {
   const verdict = route?.params?.verdict ?? 'scam'; // 'scam' | 'suspicious' | 'safe'
@@ -40,6 +59,11 @@ export default function VerdictScreen({ route, navigation }) {
   const isSusp = verdict === 'suspicious';
   const gradient = isScam ? gradients.danger : isSusp ? gradients.warn : gradients.safe;
   const [alertVisible, setAlertVisible] = useState(false);
+  const [members, setMembers] = useState([]);
+  const [familyCode, setFamilyCode] = useState('');
+  const [pushState, setPushState] = useState({});  // { [id]: 'sending'|'sent'|'fail' }
+  const [smsHot, setSmsHot] = useState({});         // { [id]: true } after a push failure
+  const [toast, setToast] = useState(null);
 
   // Slide-down entrance for the verdict band
   const bandY = useSharedValue(-40);
@@ -68,21 +92,69 @@ export default function VerdictScreen({ route, navigation }) {
     return () => { if (t) clearTimeout(t); Speech.stop(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Family Shield simulation — scam verdicts auto-alert the guardian.
-  const sendGuardianAlert = () => {
-    alertGuardian({
-      memberName: 'Ammi',
-      riskLevel: isScam ? 'HIGH' : 'MEDIUM',
-      message: isScam ? 'Scam SMS detect hua. Call karein.' : 'Shak wala SMS detect hua.',
-      score,
-    });
-    setAlertVisible(true);
-  };
+  // Load the real family roster + shared familyCode for the alert sheet.
+  useEffect(() => {
+    (async () => {
+      setMembers(await LocalDBService.getFamilyMembers());
+      setFamilyCode(await LocalDBService.getFamilyCode());
+    })();
+  }, []);
+
+  // Auto-open the family sheet on a scam verdict (demo flow).
   useEffect(() => {
     if (!isScam) return;
     const t = setTimeout(() => setAlertVisible(true), 2600);
     return () => clearTimeout(t);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-hide the toast.
+  useEffect(() => {
+    if (!toast) return undefined;
+    const t = setTimeout(() => setToast(null), 2200);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const alertMsg = buildAlertMessage(type, score, redFlags);
+
+  // PRIMARY — zero backend: open the native SMS app / WhatsApp with a pre-filled
+  // alert. This is the reliable path and the mandatory demo pass.
+  const openChannel = async (m, channel) => {
+    const num = toIntl(m.phone);
+    if (!num) { setToast('Phone number nahi hai'); return; }
+    const url = channel === 'sms'
+      ? `sms:${num}?body=${encodeURIComponent(alertMsg)}`
+      : `https://wa.me/${num}?text=${encodeURIComponent(alertMsg)}`;
+    try {
+      await Linking.openURL(url);
+    } catch (e) {
+      setToast(channel === 'sms' ? 'SMS app nahi khula' : 'WhatsApp nahi khula');
+    }
+  };
+
+  const onPrimary = (m) => {
+    Alert.alert('Alert bhejein', `${m.name} ko kis tarah bhejein?`, [
+      { text: 'SMS', onPress: () => openChannel(m, 'sms') },
+      { text: 'WhatsApp', onPress: () => openChannel(m, 'wa') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  // SECONDARY — real push via the backend relay. Enabled only when this member
+  // is push-linked. On sent=0 we say so honestly and keep SMS highlighted.
+  const onPush = async (m) => {
+    if (!m.token) return;
+    setPushState(p => ({ ...p, [m.id]: 'sending' }));
+    const res = await sendFamilyAlert({
+      familyCode, from: 'Hifazat App', verdict: verdict.toUpperCase(), risk: score, flags: redFlags,
+    });
+    if (res.sent > 0) {
+      setPushState(p => ({ ...p, [m.id]: 'sent' }));
+    } else {
+      setPushState(p => ({ ...p, [m.id]: 'fail' }));
+      setSmsHot(p => ({ ...p, [m.id]: true }));
+      setToast('Push fail hua — SMS use karein');
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -156,7 +228,7 @@ export default function VerdictScreen({ route, navigation }) {
             </Pressable>
             <View style={{ flexDirection: 'row', gap: SPACE.sm }}>
               <Pressable
-                onPress={sendGuardianAlert}
+                onPress={() => setAlertVisible(true)}
                 style={[styles.btn, styles.btnSm, { backgroundColor: COLORS.primary, flex: 1 }]}
               >
                 <Text style={[styles.btnText, { fontSize: SIZE.sm }]}>Family Ko Batain</Text>
@@ -167,7 +239,7 @@ export default function VerdictScreen({ route, navigation }) {
             </View>
           </>
         ) : isSusp ? (
-          <Pressable onPress={sendGuardianAlert} style={[styles.btn, { backgroundColor: COLORS.warning }]}>
+          <Pressable onPress={() => setAlertVisible(true)} style={[styles.btn, { backgroundColor: COLORS.warning }]}>
             <Ionicons name="notifications" size={SIZE.lg} color={COLORS.white} />
             <Text style={styles.btnText}>Ehtiyat — Family Ko Batain</Text>
           </Pressable>
@@ -178,46 +250,82 @@ export default function VerdictScreen({ route, navigation }) {
         )}
       </View>
 
-      {/* Family Shield guardian alert (demo simulation) */}
-      <BottomSheet visible={alertVisible} onClose={() => setAlertVisible(false)}>
-        <View style={styles.alertBody}>
-          <View style={styles.alertHead}>
-            <View style={styles.alertIcon}>
-              <Ionicons name="notifications" size={SIZE.lg} color={COLORS.white} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.alertTitle}>Guardian Alert Bheja Gaya</Text>
-              <Text style={[typo.bodyUrSm, { marginTop: SPACE.xs }]}>گھر کے سرپرست کو خبر بھیج دی گئی</Text>
-              <DemoBadge style={{ marginTop: SPACE.sm }} />
-            </View>
-          </View>
+      {/* Family Ko Batain — real SMS/WhatsApp deep links + best-effort push */}
+      <BottomSheet visible={alertVisible} onClose={() => setAlertVisible(false)} title="Family Ko Batain">
+        <Text style={[typo.bodyUrSm, { marginBottom: SPACE.sm }]}>خاندان کو بتائیں</Text>
 
-          <View style={styles.memberRow}>
-            <Avatar name="Bilal Ahmed" color={COLORS.primary} />
-            <View style={{ flex: 1, marginHorizontal: SPACE.sm }}>
-              <Text style={styles.memberName}>Bilal Ahmed</Text>
-              <Text style={styles.memberRole}>GUARDIAN · BETA</Text>
-            </View>
-            <View style={styles.deliveredPill}>
-              <Ionicons name="checkmark-circle" size={SIZE.sm} color={COLORS.accentDk} />
-              <Text style={styles.deliveredText}>DELIVERED</Text>
-            </View>
-          </View>
+        {members.length ? (
+          <ScrollView style={styles.fmScroll} showsVerticalScrollIndicator={false}>
+            <View style={{ gap: SPACE.md }}>
+              {members.map((m, i) => {
+                const ps = pushState[m.id];
+                const disabled = !m.token || ps === 'sending';
+                return (
+                  <View key={m.id} style={styles.fmCard}>
+                    <View style={styles.fmHead}>
+                      <Avatar name={m.name} color={PALETTE[i % PALETTE.length]} size={36} />
+                      <View style={{ flex: 1, marginHorizontal: SPACE.sm }}>
+                        <Text style={styles.fmName} numberOfLines={1}>{m.name}</Text>
+                        <Text style={styles.fmMeta} numberOfLines={1}>
+                          {(m.role || '').toUpperCase()}{m.phone ? ` · ${m.phone}` : ''}
+                        </Text>
+                      </View>
+                      {m.token ? (
+                        <View style={styles.fmLinked}>
+                          <Ionicons name="notifications" size={SIZE.xs} color={COLORS.primary} />
+                          <Text style={styles.fmLinkedText}>PUSH</Text>
+                        </View>
+                      ) : null}
+                    </View>
 
-          <View style={[styles.alertMsg,
-            isSusp && { backgroundColor: COLORS.warnBg, borderColor: COLORS.warning + '33' }]}>
-            <Text style={[styles.alertMsgText, isSusp && { color: COLORS.warnText }]}>
-              {isScam
-                ? `Ammi ne SCAM SMS jaancha — risk ${score}/100. Foran call karein.`
-                : 'Shak wala SMS detect hua. Ehtiyat ki zaroorat hai.'}
-            </Text>
-          </View>
+                    {/* PRIMARY — zero backend SMS / WhatsApp deep link */}
+                    <Pressable onPress={() => onPrimary(m)}
+                      style={({ pressed }) => [styles.fmPrimary, smsHot[m.id] && styles.fmPrimaryHot,
+                        pressed && { transform: [{ scale: 0.98 }] }]}>
+                      <Ionicons name="chatbubbles" size={SIZE.base} color={COLORS.white} />
+                      <Text style={styles.fmPrimaryText}>Send via SMS / WhatsApp</Text>
+                    </Pressable>
 
-          <Pressable onPress={() => setAlertVisible(false)} style={styles.okBtn}>
-            <Text style={styles.btnText}>Theek hai</Text>
-          </Pressable>
-        </View>
+                    {/* SECONDARY — real push, only when this member is linked */}
+                    <Pressable onPress={() => onPush(m)} disabled={disabled}
+                      style={[styles.fmSecondary, disabled && styles.fmSecondaryOff]}>
+                      <Ionicons
+                        name={ps === 'sent' ? 'checkmark-circle' : 'notifications-outline'}
+                        size={SIZE.base}
+                        color={!m.token ? COLORS.textMuted : ps === 'sent' ? COLORS.accentDk : COLORS.primary} />
+                      <Text style={[styles.fmSecondaryText,
+                        { color: !m.token ? COLORS.textMuted : ps === 'sent' ? COLORS.accentDk : COLORS.primary }]}>
+                        {!m.token ? 'Push Alert · SMS only'
+                          : ps === 'sending' ? 'Bhej rahe hain…'
+                          : ps === 'sent' ? 'Push sent · real'
+                          : ps === 'fail' ? 'Push fail · dobara'
+                          : 'Push Alert'}
+                      </Text>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+          </ScrollView>
+        ) : (
+          <EmptyState icon="people-outline" title="Koi member nahi" urduTitle="کوئی رکن نہیں"
+            cta="Family screen se add karein"
+            onCtaPress={() => { setAlertVisible(false); navigation?.navigate?.('Main', { screen: 'Family' }); }} />
+        )}
+
+        <Pressable onPress={() => setAlertVisible(false)} style={styles.okBtn}>
+          <Text style={styles.btnText}>Band karein</Text>
+        </Pressable>
       </BottomSheet>
+
+      {/* Honest push-failure toast */}
+      {toast ? (
+        <Animated.View entering={FadeInUp.duration(200)} exiting={FadeOutDown.duration(200)}
+          style={[styles.toast, SHADOW.elevated]}>
+          <Ionicons name="information-circle" size={SIZE.base} color={COLORS.white} />
+          <Text style={styles.toastText}>{toast}</Text>
+        </Animated.View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -378,37 +486,43 @@ const styles = StyleSheet.create({
   btnSm: { height: 44 },
   btnOutline: { backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border },
   btnText: { fontFamily: FONTS.enExtra, fontSize: SIZE.base, color: COLORS.white },
-  // Guardian alert sheet
-  alertBody: { gap: SPACE.sm },
-  alertHead: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm },
-  alertIcon: {
-    width: 44, height: 44, borderRadius: RADIUS.icon,
-    backgroundColor: COLORS.danger, alignItems: 'center', justifyContent: 'center',
+  // Family alert sheet — real SMS/WhatsApp + best-effort push
+  fmScroll: { maxHeight: 380 },
+  fmCard: {
+    backgroundColor: COLORS.surface2, borderRadius: RADIUS.btn,
+    padding: SPACE.sm, borderWidth: 1, borderColor: COLORS.border, gap: SPACE.sm,
   },
-  alertTitle: { fontFamily: FONTS.enExtra, fontSize: SIZE.base, color: COLORS.text },
-  memberRow: {
-    flexDirection: 'row', alignItems: 'center', padding: SPACE.sm,
-    borderRadius: RADIUS.btn, backgroundColor: COLORS.surface2,
-  },
-  memberName: { fontFamily: FONTS.enBold, fontSize: SIZE.base, color: COLORS.text },
-  memberRole: {
+  fmHead: { flexDirection: 'row', alignItems: 'center' },
+  fmName: { fontFamily: FONTS.enBold, fontSize: SIZE.base, color: COLORS.text },
+  fmMeta: {
     fontFamily: FONTS.enExtra, fontSize: SIZE.xs, color: COLORS.textMuted,
-    letterSpacing: 0.6, marginTop: SPACE.xs,
+    letterSpacing: 0.4, marginTop: SPACE.xs,
   },
-  deliveredPill: {
-    flexDirection: 'row', alignItems: 'center', gap: SPACE.xs,
-    paddingHorizontal: SPACE.sm, paddingVertical: SPACE.xs,
-    borderRadius: RADIUS.chip, backgroundColor: COLORS.safeBg,
+  fmLinked: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACE.xs, paddingHorizontal: SPACE.sm,
+    paddingVertical: SPACE.xs, borderRadius: RADIUS.chip, backgroundColor: COLORS.primary + '14',
   },
-  deliveredText: { fontFamily: FONTS.enExtra, fontSize: SIZE.xs, color: COLORS.accentDk, letterSpacing: 0.6 },
-  alertMsg: {
-    padding: SPACE.md, borderRadius: RADIUS.icon,
-    backgroundColor: COLORS.dangerBg, borderWidth: 1, borderColor: COLORS.danger + '33',
+  fmLinkedText: { fontFamily: FONTS.enExtra, fontSize: SIZE.xs, color: COLORS.primary, letterSpacing: 0.6 },
+  fmPrimary: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACE.sm,
+    minHeight: 48, borderRadius: RADIUS.btn, backgroundColor: COLORS.primary,
   },
-  alertMsgText: {
-    fontFamily: FONTS.enSemibold, fontSize: SIZE.sm, color: COLORS.dangerText,
-    lineHeight: SIZE.sm * 1.5,
+  fmPrimaryHot: { borderWidth: 2, borderColor: COLORS.accent },
+  fmPrimaryText: { fontFamily: FONTS.enExtra, fontSize: SIZE.base, color: COLORS.white },
+  fmSecondary: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACE.sm,
+    minHeight: 44, borderRadius: RADIUS.btn, backgroundColor: COLORS.surface,
+    borderWidth: 1.5, borderColor: COLORS.primary + '55',
   },
+  fmSecondaryOff: { borderColor: COLORS.border, backgroundColor: COLORS.surface },
+  fmSecondaryText: { fontFamily: FONTS.enExtra, fontSize: SIZE.sm },
+  toast: {
+    position: 'absolute', bottom: SPACE.xl, alignSelf: 'center', maxWidth: '90%',
+    flexDirection: 'row', alignItems: 'center', gap: SPACE.sm,
+    backgroundColor: COLORS.text, paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm,
+    borderRadius: RADIUS.chip,
+  },
+  toastText: { fontFamily: FONTS.enBold, fontSize: SIZE.sm, color: COLORS.white },
   okBtn: {
     height: 50, borderRadius: RADIUS.btn, backgroundColor: COLORS.primary,
     alignItems: 'center', justifyContent: 'center', marginTop: SPACE.xs,

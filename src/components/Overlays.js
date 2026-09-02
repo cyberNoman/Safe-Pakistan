@@ -8,10 +8,12 @@ import Svg, { Circle, Defs, RadialGradient, Stop, Rect } from 'react-native-svg'
 import Animated, {
   useSharedValue, useAnimatedStyle, useAnimatedProps,
   withRepeat, withTiming, withSequence, withSpring, Easing,
+  FadeInDown, FadeOutUp,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZE, RADIUS, SPACE, SHADOW, gradients } from '@/theme/tokens';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -93,6 +95,53 @@ export function BottomSheet({ visible, onClose, children, title }) {
   );
 }
 
+// ── FamilyAlertBanner ────────────────────────────────────────
+// Foreground in-app banner for a received HIFAZAT family push alert (task E).
+// App.js shows this when expo-notifications delivers { verdict, risk } while
+// the app is open; the background/killed path is the OS/FCM system
+// notification. Colour follows the verdict (scam→danger is legitimate — this
+// IS a scam-verdict surface). Auto-dismisses; never fakes delivery.
+export function FamilyAlertBanner({ alert, onDismiss }) {
+  const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    if (!alert) return undefined;
+    const t = setTimeout(() => onDismiss?.(), 6000);
+    return () => clearTimeout(t);
+  }, [alert, onDismiss]);
+
+  if (!alert) return null;
+
+  const v = String(alert.verdict || '').toUpperCase();
+  const isScam = v === 'SCAM';
+  const isSusp = v === 'SUSPICIOUS';
+  const color = isScam ? COLORS.danger : isSusp ? COLORS.warning : COLORS.accent;
+  const icon = isScam ? 'warning' : isSusp ? 'alert-circle' : 'shield-checkmark';
+  const risk = Number(alert.risk || 0);
+
+  return (
+    <Animated.View
+      entering={FadeInDown.duration(300)}
+      exiting={FadeOutUp.duration(200)}
+      style={[styles.alertBanner, { top: insets.top + SPACE.sm }, SHADOW.elevated]}>
+      <View style={[styles.alertIcon, { backgroundColor: color + '1A' }]}>
+        <Ionicons name={icon} size={SIZE.lg} color={color} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.alertTitle}>HIFAZAT ALERT</Text>
+        <Text style={styles.alertBody} numberOfLines={3}>
+          <Text style={{ color, fontFamily: FONTS.enBlack }}>{v}</Text>
+          {` SMS — risk ${risk}/100. Do not reply. Call now.`}
+        </Text>
+      </View>
+      <Pressable onPress={() => onDismiss?.()} hitSlop={SIZE.sm} style={styles.alertClose}
+        accessibilityLabel="Alert band karein">
+        <Ionicons name="close" size={SIZE.lg} color={COLORS.textMuted} />
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 const styles = StyleSheet.create({
   shieldWrap: { alignItems: 'center', justifyContent: 'center', position: 'relative' },
   glow: { position: 'absolute' },
@@ -118,5 +167,25 @@ const styles = StyleSheet.create({
   },
   sheetTitle: {
     fontFamily: FONTS.enExtra, fontSize: SIZE.lg, color: COLORS.text, marginBottom: SPACE.sm,
+  },
+  alertBanner: {
+    position: 'absolute', left: SPACE.lg, right: SPACE.lg, zIndex: 10,
+    flexDirection: 'row', alignItems: 'center', gap: SPACE.sm,
+    backgroundColor: COLORS.surface, borderRadius: RADIUS.card,
+    padding: SPACE.md, borderWidth: 1, borderColor: COLORS.border,
+  },
+  alertIcon: {
+    width: 40, height: 40, borderRadius: RADIUS.icon, flexShrink: 0,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  alertTitle: {
+    fontFamily: FONTS.enExtra, fontSize: SIZE.xs, color: COLORS.textMuted, letterSpacing: 1,
+  },
+  alertBody: {
+    fontFamily: FONTS.enSemibold, fontSize: SIZE.lg, color: COLORS.text,
+    lineHeight: SIZE.lg * 1.35, marginTop: SPACE.xs,
+  },
+  alertClose: {
+    width: 44, height: 44, alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
 });

@@ -24,6 +24,8 @@ const KEY_FAMILY = '@safe_pakistan_family';
 const KEY_NOTIFY_COUNT = '@safe_pakistan_notify_count';
 const KEY_CHAT_FEEDBACK = '@safe_pakistan_chat_feedback';
 const KEY_CHAT_REPORT = '@safe_pakistan_chat_report';
+const KEY_FAMILY_CODE = '@safe_pakistan_family_code';
+const KEY_DEVICE_PUSH = '@safe_pakistan_device_push';
 const HISTORY_CAP = 50;
 const LOG_CAP = 200;
 const DAY_MS = 86400000;
@@ -190,6 +192,44 @@ export const LocalDBService = {
     const members = await LocalDBService.getFamilyMembers();
     const next = members.filter(m => m.id !== id);
     await writeJSON(KEY_FAMILY, next);
+    return next;
+  },
+  /** Attach this device's push token to a member → member shows "Push linked". */
+  async setMemberToken(id, token) {
+    const members = await LocalDBService.getFamilyMembers();
+    const next = members.map(m => (m.id === id ? { ...m, token: token || undefined } : m));
+    await writeJSON(KEY_FAMILY, next);
+    return next;
+  },
+
+  // ── Family push: shared familyCode + this device's Expo push token ──
+  // familyCode is stable per install and shown on the Family screen so two
+  // phones can join the same family for the demo. devicePush stays null until
+  // the user makes this device push-ready (permission + getExpoPushTokenAsync).
+  async getFamilyCode() {
+    let code = await readJSON(KEY_FAMILY_CODE, null);
+    if (!code || typeof code !== 'string') {
+      code = String(Math.floor(100000 + Math.random() * 900000));
+      await writeJSON(KEY_FAMILY_CODE, code);
+    }
+    return code;
+  },
+  async setFamilyCode(code) {
+    const c = String(code || '').trim();
+    if (c) await writeJSON(KEY_FAMILY_CODE, c);
+    return c;
+  },
+  async getDevicePush() {
+    const d = await readJSON(KEY_DEVICE_PUSH, null);
+    return d && typeof d === 'object' && d.token ? d : null;
+  },
+  async setDevicePush(rec = {}) {
+    const next = {
+      token: String(rec.token || ''), familyCode: String(rec.familyCode || ''),
+      name: String(rec.name || 'This Device'), role: String(rec.role || 'Parent'),
+      ts: Date.now(),
+    };
+    await writeJSON(KEY_DEVICE_PUSH, next);
     return next;
   },
 
