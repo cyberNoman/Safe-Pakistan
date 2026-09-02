@@ -77,6 +77,16 @@ export function AgentStatusDot({ label, status = 'on' }) {
   );
 }
 
+// ── DemoBadge — "DEMO · SIMULATED" label for simulated surfaces ──────
+// Neutral chrome styling (no verdict color) so it never reads as scam/safe.
+export function DemoBadge({ style }) {
+  return (
+    <View style={[styles.demoBadge, style]}>
+      <Text style={styles.demoText}>DEMO · SIMULATED</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start',
@@ -103,5 +113,15 @@ const styles = StyleSheet.create({
   agentLabel: {
     fontFamily: FONTS.enSemibold, fontSize: SIZE.xs,
     color: COLORS.textMuted, letterSpacing: 0.2,
+  },
+
+  demoBadge: {
+    alignSelf: 'flex-start', flexShrink: 0,
+    paddingHorizontal: SPACE.sm, paddingVertical: SPACE.xs,
+    borderRadius: RADIUS.chip, backgroundColor: COLORS.surface2,
+    borderWidth: 1, borderColor: COLORS.border,
+  },
+  demoText: {
+    fontFamily: FONTS.enBold, fontSize: SIZE.xs, color: COLORS.textMuted, letterSpacing: 0.4,
   },
 });

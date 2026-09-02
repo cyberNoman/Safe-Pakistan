@@ -17,18 +17,26 @@ import { COLORS, FONTS, SIZE, RADIUS, SHADOW, SPACE, gradients } from '@/theme/t
 import { typo } from '@/theme/typography';
 import ThreatRing from '@/components/ThreatRing';
 import { StatusPill, AgentStatusDot } from '@/components/Indicators';
-import { Avatar, StatCard, SectionHeader, ActivityFeedItem } from '@/components/Cards';
+import { Avatar, StatCard, SectionHeader, ActivityFeedItem, EmptyState } from '@/components/Cards';
 import { useAppContext } from '@/context/AppContext';
+import { deriveTone, relTime } from '@/services/LocalDBService';
 
 export default function HomeScreen({ navigation }) {
-  const { scanCount = 312, blockedCount = 47, recentScans = [] } = useAppContext();
+  // Every number comes from the real scan store — zero scans → zeros + empty state.
+  const { scans = [], scanCount = 0, blockedCount = 0, safeCount = 0, recentScans = [] } = useAppContext();
   const userName = 'Ahmed Khan';
 
-  const recent = [
-    { tone:'danger', type:'BISP 8171 Fraud', message:'Mubarak ho! Apko 25,000 mile hain...', time:'2m' },
-    { tone:'warn',   type:'Unknown Link',     message:'Aapka JazzCash account verify karein...', time:'1h' },
-    { tone:'safe',   type:'JazzCash Official',message:'Your transfer of Rs 5,000 to...', time:'3h' },
-  ];
+  // Threats blocked today (real) — drives the hero headline.
+  const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+  const blockedToday = scans.filter(s => s.verdict === 'scam' && Number(s.ts) >= startOfToday.getTime()).length;
+
+  // Recent activity — real scans only, newest first (3 rows to fit one viewport).
+  const recent = recentScans.slice(0, 3).map(s => ({
+    tone: deriveTone(s.verdict),
+    type: s.scam_type || 'Scan',
+    message: s.msg || '',
+    time: relTime(s.ts),
+  }));
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -52,7 +60,9 @@ export default function HomeScreen({ navigation }) {
               <Ionicons name="notifications-outline" size={SIZE.xl} color={COLORS.text} />
               <View style={styles.dot} />
             </Pressable>
-            <Avatar name={userName} color={COLORS.primary} size={44} />
+            <Pressable onPress={() => navigation?.navigate?.('Profile')} hitSlop={SIZE.xs}>
+              <Avatar name={userName} color={COLORS.primary} size={44} />
+            </Pressable>
           </View>
         </View>
 
@@ -65,10 +75,10 @@ export default function HomeScreen({ navigation }) {
           <View style={{ flex: 1 }}>
             <StatusPill kind="safe">PROTECTED · MEHFOOZ</StatusPill>
             <Text style={styles.heroTitle}>
-              Aaj 3 threats block hue
+              {blockedToday > 0 ? `Aaj ${blockedToday} threats block hue` : 'Aapka ghar mehfooz hai'}
             </Text>
             <Text style={[typo.bodyUrInv, { marginTop: SPACE.xs }]}>
-              آج 3 خطرات روکے گئے
+              {blockedToday > 0 ? `آج ${blockedToday} خطرات روکے گئے` : 'آپ کا گھر محفوظ ہے'}
             </Text>
             <View style={{ flexDirection: 'row', gap: SPACE.sm, marginTop: SPACE.md, flexWrap: 'wrap' }}>
               <AgentStatusDot label="SMS" status="on" />
@@ -84,7 +94,7 @@ export default function HomeScreen({ navigation }) {
         <View style={{ flexDirection: 'row', gap: SPACE.sm, marginTop: SPACE.md }}>
           <StatCard value={String(blockedCount)} label="Threats Blocked" color={COLORS.danger}  icon="shield" />
           <StatCard value={String(scanCount)}    label="Total Scans"     color={COLORS.primary} icon="scan" />
-          <StatCard value="5"                    label="Family Safe"     color={COLORS.accent}  icon="people" />
+          <StatCard value={String(safeCount)}    label="Safe Scans"      color={COLORS.accent}  icon="checkmark-circle" />
         </View>
 
         {/* Recent — Scan and Voice are tab-bar destinations, so no duplicate quick tiles */}
@@ -94,9 +104,19 @@ export default function HomeScreen({ navigation }) {
             action="See All →"
             onActionPress={() => navigation?.navigate?.('Library')}
           />
-          <View style={{ gap: SPACE.sm }}>
-            {recent.map((r, i) => <ActivityFeedItem key={i} {...r} />)}
-          </View>
+          {recent.length ? (
+            <View style={{ gap: SPACE.sm }}>
+              {recent.map((r, i) => <ActivityFeedItem key={i} {...r} />)}
+            </View>
+          ) : (
+            <EmptyState
+              icon="scan-outline"
+              title="Abhi koi scan nahi"
+              urduTitle="ابھی کوئی اسکین نہیں"
+              cta="SMS Jaanchein"
+              onCtaPress={() => navigation?.navigate?.('Scan')}
+            />
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

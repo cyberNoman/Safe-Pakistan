@@ -30,6 +30,7 @@ import ChatScreen      from '@/screens/ChatScreen';
 import FamilyConsentScreen     from '@/screens/FamilyConsentScreen';
 import ScreenshotResultScreen  from '@/screens/ScreenshotResultScreen';
 import ModelPerfScreen         from '@/screens/ModelPerfScreen';
+import ProfileScreen           from '@/screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 const Tabs  = createBottomTabNavigator();
@@ -105,6 +106,8 @@ export default function AppNavigator({ hasOnboarded = false }) {
         <Stack.Screen name="ScreenshotResult" component={ScreenshotResultScreen}
           options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="ModelPerf" component={ModelPerfScreen} />
+        <Stack.Screen name="Profile" component={ProfileScreen}
+          options={{ animation: 'slide_from_right' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

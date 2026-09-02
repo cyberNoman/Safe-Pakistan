@@ -13,6 +13,7 @@ import { COLORS, FONTS, SIZE, RADIUS, SPACE, gradients } from '@/theme/tokens';
 import { typo } from '@/theme/typography';
 import { LoadingShield } from '@/components/Overlays';
 import { analyzeText } from '@/services/api';
+import { useAppContext } from '@/context/AppContext';
 
 const STEPS = [
   { icon: 'person-outline', label: 'Sender Check' },
@@ -22,6 +23,7 @@ const STEPS = [
 
 export default function LoadingScreen({ route, navigation }) {
   const text = route?.params?.text ?? '';
+  const { recordScan } = useAppContext();
 
   useEffect(() => {
     let alive = true;
@@ -32,6 +34,20 @@ export default function LoadingScreen({ route, navigation }) {
         analyzeText(text),
         new Promise(r => setTimeout(r, 1400)),
       ]);
+      // Persist every scan to the real store — Home / Report / Library read ONLY this.
+      // Never blocks the verdict: a persist failure still routes to the result.
+      try {
+        await recordScan({
+          ts: Date.now(),
+          verdict: result?.verdict,
+          score: result?.score,
+          scam_type: result?.type,
+          layer_used: result?.model_used,
+          msg: String(text || '').slice(0, 90),
+        });
+      } catch (e) {
+        // ignore — analytics persistence must never block the user
+      }
       if (alive) navigation.replace('Verdict', result);
     })();
     return () => { alive = false; };

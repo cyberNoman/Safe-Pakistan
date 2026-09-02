@@ -1,29 +1,55 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZE, RADIUS, SHADOW, SPACE, gradients } from '@/theme/tokens';
 import { typo } from '@/theme/typography';
-import { SectionHeader } from '@/components/Cards';
+import { SectionHeader, EmptyState } from '@/components/Cards';
+import { useAppContext } from '@/context/AppContext';
+import { savedEstimateFor } from '@/services/LocalDBService';
 
-const DAYS = [
-  { d:'Pir',  blocked:4, scans:8 },  { d:'Mng', blocked:2, scans:5 },
-  { d:'Bdh',  blocked:6, scans:11 }, { d:'Jma', blocked:3, scans:7 },
-  { d:'Jum',  blocked:8, scans:14 }, { d:'Hft', blocked:5, scans:9 },
-  { d:'Itw',  blocked:7, scans:12 },
-];
+// Sun..Sat Roman-Urdu abbreviations — match the artboard's day labels.
+const DAY_ABBR = ['Itw', 'Pir', 'Mng', 'Bdh', 'Jma', 'Jum', 'Hft'];
+const ROW_COLORS = [COLORS.danger, COLORS.warning, COLORS.primaryLt, COLORS.accentDk];
 
-const TYPES = [
-  { l:'BISP 8171 Fraud',      ur:'بے نظیر فراڈ', count:8, amount:45000, c: COLORS.danger },
-  { l:'JazzCash Phishing',    ur:'جاز کیش',     count:5, amount:32000, c: COLORS.warning },
-  { l:'Friend Impersonation', ur:'دوست کا روپ', count:3, amount:28000, c: COLORS.primaryLt },
-  { l:'OTP Theft',            ur:'او ٹی پی',    count:2, amount:15000, c: COLORS.accentDk },
-];
+// Group the real scans into the last 7 calendar days (oldest → newest).
+function last7Days(scans) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const buckets = [];
+  for (let i = 6; i >= 0; i--) {
+    const start = new Date(today); start.setDate(today.getDate() - i);
+    const end = new Date(start); end.setDate(start.getDate() + 1);
+    const dayRows = scans.filter(s => Number(s.ts) >= start.getTime() && Number(s.ts) < end.getTime());
+    buckets.push({
+      d: DAY_ABBR[start.getDay()],
+      scans: dayRows.length,
+      blocked: dayRows.filter(s => s.verdict === 'scam').length,
+    });
+  }
+  return buckets;
+}
+
+// Blocked (scam) scans grouped by type → count + estimated PKR saved.
+function scamBreakdown(scans) {
+  const counts = {};
+  scans.filter(s => s.verdict === 'scam').forEach(s => {
+    const t = s.scam_type || 'Other Scam';
+    counts[t] = (counts[t] || 0) + 1;
+  });
+  return Object.entries(counts)
+    .map(([label, count]) => ({ label, count, amount: count * savedEstimateFor(label) }))
+    .sort((a, b) => b.count - a.count);
+}
 
 export default function AnalyticsScreen({ navigation }) {
-  const max = Math.max(...DAYS.map(d => d.scans));
-  const total = TYPES.reduce((a, b) => a + b.count, 0);
+  // Report computes ONLY from the real scan store. Zero scans → clean empty state.
+  const { scans = [], savedAmount = 0, blockedCount = 0, scanCount = 0 } = useAppContext();
+
+  const days = useMemo(() => last7Days(scans), [scans]);
+  const types = useMemo(() => scamBreakdown(scans), [scans]);
+  const max = Math.max(1, ...days.map(d => d.scans));
+  const isEmpty = scanCount === 0;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={['top']}>
@@ -46,73 +72,96 @@ export default function AnalyticsScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Hero saved */}
-        <LinearGradient colors={gradients.hero.colors} start={gradients.hero.start} end={gradients.hero.end}
-          style={[styles.hero, SHADOW.elevated]}
-        >
-          <Text style={styles.heroLabel}>TOTAL BACHAYA</Text>
-          <Text style={[typo.scoreEn, { color: COLORS.white, marginTop: SPACE.sm }]}>Rs 1,20,000</Text>
-          <Text style={[typo.bodyEnInv, { marginTop: SPACE.xs }]}>
-            Aapne apne gharane ko 1 lakh 20 hazaar rupees ka nuqsaan se bachaya.
-          </Text>
-        </LinearGradient>
+        {isEmpty ? (
+          <EmptyState
+            icon="stats-chart-outline"
+            title="Abhi koi scan nahi"
+            urduTitle="ابھی کوئی اسکین نہیں"
+            cta="SMS Jaanchein"
+            onCtaPress={() => navigation?.navigate?.('Scan')}
+          />
+        ) : (
+          <>
+            {/* Hero — real money saved: blocked scans × per-type estimate */}
+            <LinearGradient colors={gradients.hero.colors} start={gradients.hero.start} end={gradients.hero.end}
+              style={[styles.hero, SHADOW.elevated]}
+            >
+              <Text style={styles.heroLabel}>TOTAL BACHAYA</Text>
+              <Text style={[typo.scoreEn, { color: COLORS.white, marginTop: SPACE.sm }]}>Rs {savedAmount.toLocaleString()}</Text>
+              <View style={styles.estimateChip}>
+                <Ionicons name="information-circle" size={SIZE.sm} color={COLORS.white} />
+                <Text style={styles.estimateText}>estimated per scam type</Text>
+              </View>
+              <Text style={[typo.bodyEnInv, { marginTop: SPACE.sm }]}>
+                {blockedCount} scam{blockedCount === 1 ? '' : 's'} block kar ke aapne yeh nuqsaan bachaya.
+              </Text>
+            </LinearGradient>
 
-        {/* Chart */}
-        <View style={[styles.card, SHADOW.card, { marginTop: SPACE.md }]}>
-          <View style={styles.chartHead}>
-            <Text style={styles.cardTitle}>7 Din Ki Activity</Text>
-            <View style={styles.legendRow}>
-              <Legend color={COLORS.danger} label="Blocked" />
-              <Legend color={COLORS.accent} label="Safe" />
-            </View>
-          </View>
-          <View style={styles.chart}>
-            {DAYS.map((d, i) => {
-              const safe = d.scans - d.blocked;
-              const totalH = (d.scans / max) * 120;
-              return (
-                <View key={i} style={styles.dayCol}>
-                  <View style={styles.bar}>
-                    <View style={{ height: (d.blocked / d.scans) * totalH, backgroundColor: COLORS.danger }} />
-                    <View style={{ height: (safe / d.scans) * totalH, backgroundColor: COLORS.accent }} />
-                  </View>
-                  <Text style={styles.dayLabel}>{d.d}</Text>
+            {/* Chart — last 7 days of real activity */}
+            <View style={[styles.card, SHADOW.card, { marginTop: SPACE.md }]}>
+              <View style={styles.chartHead}>
+                <Text style={styles.cardTitle}>7 Din Ki Activity</Text>
+                <View style={styles.legendRow}>
+                  <Legend color={COLORS.danger} label="Blocked" />
+                  <Legend color={COLORS.accent} label="Safe" />
                 </View>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* Breakdown */}
-        <View style={{ marginTop: SPACE.md }}>
-          <SectionHeader title="Scam Breakdown" urduTitle="فراڈ کی اقسام" />
-          <View style={[styles.card, SHADOW.card, { gap: SPACE.md }]}>
-            {TYPES.map((t, i) => {
-              const pct = (t.count / total) * 100;
-              return (
-                <View key={i}>
-                  <View style={styles.breakHead}>
-                    <View style={styles.breakLabels}>
-                      <Text style={{ fontFamily: FONTS.enBold, fontSize: SIZE.sm, color: COLORS.text }}>{t.l}</Text>
-                      <Text style={{ fontFamily: FONTS.enMedium, fontSize: SIZE.xs, color: COLORS.textMuted }}>· {t.count}</Text>
+              </View>
+              <View style={styles.chart}>
+                {days.map((d, i) => {
+                  const safe = d.scans - d.blocked;
+                  const totalH = (d.scans / max) * 120;
+                  return (
+                    <View key={i} style={styles.dayCol}>
+                      <View style={styles.bar}>
+                        {d.scans > 0 && <View style={{ height: (d.blocked / d.scans) * totalH, backgroundColor: COLORS.danger }} />}
+                        {d.scans > 0 && <View style={{ height: (safe / d.scans) * totalH, backgroundColor: COLORS.accent }} />}
+                      </View>
+                      <Text style={styles.dayLabel}>{d.d}</Text>
                     </View>
-                    <Text style={{ fontFamily: FONTS.enExtra, fontSize: SIZE.sm, color: t.c, fontVariant: ['tabular-nums'] }}>
-                      Rs {t.amount.toLocaleString()}
-                    </Text>
-                  </View>
-                  <View style={styles.barTrack}>
-                    <View style={{ height: '100%', width: `${pct}%`, backgroundColor: t.c, borderRadius: RADIUS.chip }} />
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        </View>
+                  );
+                })}
+              </View>
+            </View>
 
-        <Pressable style={styles.shareBtn}>
-          <Ionicons name="share-social" size={SIZE.lg} color={COLORS.white} />
-          <Text style={styles.shareText}>Report Share Karein</Text>
-        </Pressable>
+            {/* Breakdown — real scam types only */}
+            <View style={{ marginTop: SPACE.md }}>
+              <SectionHeader title="Scam Breakdown" urduTitle="فراڈ کی اقسام" />
+              {types.length ? (
+                <View style={[styles.card, SHADOW.card, { gap: SPACE.md }]}>
+                  {types.map((t, i) => {
+                    const pct = (t.count / blockedCount) * 100;
+                    const c = ROW_COLORS[i % ROW_COLORS.length];
+                    return (
+                      <View key={t.label}>
+                        <View style={styles.breakHead}>
+                          <View style={styles.breakLabels}>
+                            <Text style={{ fontFamily: FONTS.enBold, fontSize: SIZE.sm, color: COLORS.text }}>{t.label}</Text>
+                            <Text style={{ fontFamily: FONTS.enMedium, fontSize: SIZE.xs, color: COLORS.textMuted }}>· {t.count}</Text>
+                          </View>
+                          <Text style={{ fontFamily: FONTS.enExtra, fontSize: SIZE.sm, color: c, fontVariant: ['tabular-nums'] }}>
+                            Rs {t.amount.toLocaleString()}
+                          </Text>
+                        </View>
+                        <View style={styles.barTrack}>
+                          <View style={{ height: '100%', width: `${pct}%`, backgroundColor: c, borderRadius: RADIUS.chip }} />
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : (
+                <View style={[styles.card, SHADOW.card]}>
+                  <Text style={styles.emptyNote}>Abhi koi scam block nahi hua.</Text>
+                </View>
+              )}
+            </View>
+
+            <Pressable style={styles.shareBtn}>
+              <Ionicons name="share-social" size={SIZE.lg} color={COLORS.white} />
+              <Text style={styles.shareText}>Report Share Karein</Text>
+            </Pressable>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -137,6 +186,13 @@ const styles = StyleSheet.create({
   heroLabel: {
     fontFamily: FONTS.enExtra, fontSize: SIZE.xs, color: COLORS.white + 'CC', letterSpacing: 1.2,
   },
+  estimateChip: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACE.xs, alignSelf: 'flex-start',
+    marginTop: SPACE.sm, paddingHorizontal: SPACE.sm, paddingVertical: SPACE.xs,
+    borderRadius: RADIUS.chip, backgroundColor: COLORS.white20,
+  },
+  estimateText: { fontFamily: FONTS.enSemibold, fontSize: SIZE.xs, color: COLORS.white, letterSpacing: 0.3 },
+  emptyNote: { fontFamily: FONTS.enMedium, fontSize: SIZE.sm, color: COLORS.textMuted, textAlign: 'center' },
   card: {
     backgroundColor: COLORS.surface, borderRadius: RADIUS.card, padding: SPACE.md,
     borderWidth: 1, borderColor: COLORS.border,

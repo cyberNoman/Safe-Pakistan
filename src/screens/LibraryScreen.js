@@ -1,50 +1,45 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZE, RADIUS, SHADOW, SPACE } from '@/theme/tokens';
 import { typo } from '@/theme/typography';
-import { LocalDBService, MOCK_SCAN_HISTORY } from '@/data/mockData';
+import { EmptyState } from '@/components/Cards';
+import { useAppContext } from '@/context/AppContext';
+import { deriveTone, relTime } from '@/services/LocalDBService';
 
-// Map a history record to the LibraryRow shape (score defaulted by tone).
-function toRow(item, idx) {
-  const tone = item.tone;
+// Map a real scan record → LibraryRow shape.
+function toRow(s, idx) {
   return {
-    id: item.id ?? String(idx),
-    tone,
-    type: item.type,
-    msg: item.msg ?? item.message,
-    time: item.time,
-    score: item.score ?? (tone === 'danger' ? 92 : tone === 'warn' ? 64 : 8),
+    id: String(s.ts ?? idx),
+    tone: deriveTone(s.verdict),
+    type: s.scam_type || 'Scan',
+    msg: s.msg || '',
+    time: relTime(s.ts),
+    score: s.score ?? 0,
   };
 }
 
-const FILTERS = [
-  { key:'all',    label:'All',         count: 47 },
-  { key:'scam',   label:'Scams',       count: 18, tone: COLORS.danger },
-  { key:'susp',   label:'Suspicious',  count:  9, tone: COLORS.warning },
-  { key:'safe',   label:'Safe',        count: 20, tone: COLORS.accent },
-];
-
 export default function LibraryScreen({ navigation }) {
   const [filter, setFilter] = useState('all');
-  const [items, setItems] = useState([]);
+  // Real scans only — an empty store stays empty (no mock, no back-fill).
+  const { scans = [] } = useAppContext();
+  const items = scans.map(toRow);
 
-  // Load scan history from LocalDBService; fall back to mock data on empty/throw.
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      let rows = [];
-      try {
-        rows = (await LocalDBService.getScanHistory()) || [];
-      } catch (e) {
-        rows = [];
-      }
-      if (!rows.length) rows = MOCK_SCAN_HISTORY;
-      if (alive) setItems(rows.map(toRow));
-    })();
-    return () => { alive = false; };
-  }, []);
+  const counts = {
+    all:  items.length,
+    scam: items.filter(i => i.tone === 'danger').length,
+    susp: items.filter(i => i.tone === 'warn').length,
+    safe: items.filter(i => i.tone === 'safe').length,
+  };
+
+  // Filter counts are computed from the real store, never hardcoded.
+  const FILTERS = [
+    { key:'all',  label:'All',        count: counts.all },
+    { key:'scam', label:'Scams',      count: counts.scam, tone: COLORS.danger },
+    { key:'susp', label:'Suspicious', count: counts.susp, tone: COLORS.warning },
+    { key:'safe', label:'Safe',       count: counts.safe, tone: COLORS.accent },
+  ];
 
   const visible = filter === 'all' ? items : items.filter(i =>
     filter === 'scam' ? i.tone === 'danger' : filter === 'susp' ? i.tone === 'warn' : i.tone === 'safe');
@@ -85,7 +80,19 @@ export default function LibraryScreen({ navigation }) {
         </ScrollView>
 
         <View style={styles.rows}>
-          {visible.map(item => <LibraryRow key={item.id} item={item} />)}
+          {items.length === 0 ? (
+            <EmptyState
+              icon="library-outline"
+              title="Abhi koi scan nahi"
+              urduTitle="ابھی کوئی اسکین نہیں"
+              cta="SMS Jaanchein"
+              onCtaPress={() => navigation?.navigate?.('Scan')}
+            />
+          ) : visible.length === 0 ? (
+            <Text style={styles.emptyNote}>Is filter mein koi scan nahi.</Text>
+          ) : (
+            visible.map(item => <LibraryRow key={item.id} item={item} />)
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -131,6 +138,10 @@ const styles = StyleSheet.create({
   },
   filterDot: (c) => ({ width: SPACE.sm, height: SPACE.sm, borderRadius: RADIUS.chip, backgroundColor: c }),
   rows: { marginTop: SPACE.md, gap: SPACE.sm },
+  emptyNote: {
+    fontFamily: FONTS.enMedium, fontSize: SIZE.sm, color: COLORS.textMuted,
+    textAlign: 'center', paddingVertical: SPACE.lg,
+  },
   row: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: COLORS.surface, borderRadius: RADIUS.btn, padding: SPACE.sm,

@@ -14,7 +14,6 @@ import { typo } from '@/theme/typography';
 import { Avatar, SectionHeader, FamilyMemberCard } from '@/components/Cards';
 import { alertGuardian } from '@/services/PushService';
 import { FamilyService } from '@/services/FamilyService';
-import { useAppContext } from '@/context/AppContext';
 
 const MEMBERS = [
   { id:'1', name:'Saima Khan',  role:'Ammi',  status:'safe', lastProtected:'2 min ago',  color: COLORS.accentDk },
@@ -23,13 +22,11 @@ const MEMBERS = [
 ];
 
 export default function FamilyScreen({ navigation }) {
-  const { incrementScan } = useAppContext();
-
-  // "Family Ko Batain" — mock push to the member's guardian + in-app confirm.
+  // "Family Ko Batain" — simulated push to the member's guardian + in-app confirm.
+  // A family alert is NOT a scan, so it never touches the real scan stats.
   const notifyFamily = async member => {
     const res = await alertGuardian(member.id, 'manual_alert');
     if (!res?.success) return;
-    incrementScan(); // reflect user activity
     Alert.alert(
       'Alert bhej diya gaya',
       `${member.name} ke guardian ko khabar kar di gayi hai.`,

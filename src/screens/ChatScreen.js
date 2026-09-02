@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZE, RADIUS, SPACE, SHADOW, gradients } from '@/theme/tokens';
 import { typo } from '@/theme/typography';
+import { DemoBadge } from '@/components/Indicators';
 
 const SUGGESTIONS = [
   'Kya JazzCash SMS safe hai?',
@@ -12,30 +13,132 @@ const SUGGESTIONS = [
   'OTP kab dena chahiye?',
 ];
 
+// ── Scoped knowledge base ────────────────────────────────────────────────
+// Pre-verified facts ONLY. No open-ended LLM calls from chat. Each fact carries
+// its source as a comment. Anything outside this KB → the NCCIA 1799 fallback.
+
+// Official senders / shortcodes for the number-check rule.
+const SHORTCODES = {
+  '4444': { en: 'JazzCash',          ur: 'جاز کیش' },                    // jazzcash.com.pk
+  '3737': { en: 'Easypaisa',         ur: 'ایزی پیسہ' },                  // easypaisa fraud alert
+  '8257': { en: 'UBL',               ur: 'یو بی ایل' },                  // ubldigital.com
+  '8171': { en: 'BISP / Ehsaas',     ur: 'بے نظیر / احساس' },            // 8171 portal
+  '1799': { en: 'NCCIA Cybercrime',  ur: 'این سی سی اے سائبر کرائم' },   // nccia.gov.pk
+  '111':  { en: 'Jazz helpline',     ur: 'جاز ہیلپ لائن' },              // telecom helplines
+  '345':  { en: 'Telenor helpline',  ur: 'ٹیلی نار ہیلپ لائن' },
+  '310':  { en: 'Zong helpline',     ur: 'زونگ ہیلپ لائن' },
+  '333':  { en: 'Ufone helpline',    ur: 'یوفون ہیلپ لائن' },
+};
+
+const KB = [
+  // source: jazzcash.com.pk
+  { keys: ['jazzcash', 'jazz cash'],
+    en: 'JazzCash official SMS sirf 4444 se bhejta hai.',
+    ur: 'جاز کیش آفیشل پیغام صرف 4444 سے بھیجتا ہے۔' },
+  // source: easypaisa fraud alert
+  { keys: ['easypaisa', 'easy paisa'],
+    en: 'Easypaisa ka official sender 3737 hai.',
+    ur: 'ایزی پیسہ کا آفیشل سینڈر 3737 ہے۔' },
+  // source: ubldigital.com
+  { keys: ['ubl'],
+    en: 'UBL ke alerts 8257 se aate hain.',
+    ur: 'یو بی ایل کے الرٹس 8257 سے آتے ہیں۔' },
+  // source: telecom helplines (Jazz / Telenor / Zong / Ufone)
+  { keys: ['helpline', 'telenor', 'zong', 'ufone'],
+    en: 'Helplines: Jazz 111, Telenor 345, Zong 310, Ufone 333.',
+    ur: 'ہیلپ لائنز: جاز 111، ٹیلی نار 345، زونگ 310، یوفون 333۔' },
+  // source: nccia.gov.pk
+  { keys: ['nccia', 'cybercrime', 'cyber crime', 'shikayat', 'report'],
+    en: 'NCCIA cybercrime helpline 1799 hai. Wahin report karein.',
+    ur: 'این سی سی اے سائبر کرائم ہیلپ لائن 1799 ہے۔ وہیں رپورٹ کریں۔' },
+  // source: BISP 8171 portal
+  { keys: ['bisp', 'ehsaas', '8171', 'eligibility'],
+    en: 'BISP/Ehsaas eligibility sirf 8171 portal se khud check karein. BISP kabhi OTP ya fees SMS par nahi maangta.',
+    ur: 'بے نظیر / احساس اہلیت صرف 8171 پورٹل سے خود چیک کریں۔ بی آئی ایس پی کبھی او ٹی پی یا فیس نہیں مانگتا۔' },
+  // source: OTP safety rule
+  { keys: ['otp', 'code', 'pin', 'password', 'cvv'],
+    en: 'Scammer OTP ya code maangte hain. Asli bank kehta hai code kabhi share na karein.',
+    ur: 'اسکیمر او ٹی پی یا کوڈ مانگتے ہیں۔ اصلی بینک کہتا ہے کوڈ کبھی شیئر نہ کریں۔' },
+  // ── one fact per threat-library scam type ──
+  // source: threat library — CNIC Phishing
+  { keys: ['cnic', 'shanakht', 'identity card'],
+    en: 'CNIC number kisi SMS par na bhejein. Bank kabhi CNIC update SMS se nahi maangta.',
+    ur: 'شناختی کارڈ نمبر کسی پیغام پر نہ بھیجیں۔ بینک کبھی سی این آئی سی نہیں مانگتا۔' },
+  // source: threat library — Prize Call Scam
+  { keys: ['prize', 'lottery', 'eidi', 'inaam', 'jeeta', 'lucky draw'],
+    en: 'Aapko koi prize nahi mila. Inaam ke SMS scam hote hain.',
+    ur: 'آپ کو کوئی انعام نہیں ملا۔ انعام کے پیغام دھوکہ ہوتے ہیں۔' },
+  // source: threat library — Fake Helpline
+  { keys: ['fake helpline', 'call karein', 'is number par call'],
+    en: 'SMS mein diye gaye number par call na karein. Bank ki asli helpline official hoti hai.',
+    ur: 'پیغام میں دیے گئے نمبر پر کال نہ کریں۔ بینک کی اصلی ہیلپ لائن آفیشل ہوتی ہے۔' },
+  // source: threat library — Unknown Link
+  { keys: ['link', 'url', 'click', 'http', 'website'],
+    en: 'SMS ke link par click na karein. Yeh phishing ho sakti hai.',
+    ur: 'پیغام کے لنک پر کلک نہ کریں۔ یہ فشنگ ہو سکتی ہے۔' },
+  // source: threat library — Friend Impersonation
+  { keys: ['friend', 'dost', 'impersonat', 'paise maang', 'paise bhejo'],
+    en: 'Agar koi dost paise maange, pehle call kar ke tasdeeq karein.',
+    ur: 'اگر کوئی دوست پیسے مانگے، پہلے کال کر کے تصدیق کریں۔' },
+];
+
+// Number-check rule (kept): a known shortcode confirms the official sender;
+// an unknown phone-like number is flagged and pointed to NCCIA 1799.
+function numberCheck(text) {
+  const runs = String(text).match(/\d{3,}/g) || [];
+  if (!runs.length) return null;
+  for (const r of runs) {
+    const hit = SHORTCODES[r];
+    if (hit) {
+      return { en: `${r} ${hit.en} ka official number hai.`, ur: `${r} ${hit.ur} کا آفیشل نمبر ہے۔` };
+    }
+  }
+  const phone = runs.find(r => r.length >= 7);
+  if (phone) {
+    return {
+      en: 'Yeh number humari knowledge mein nahi — koi official sender nahi.',
+      ur: 'یہ نمبر ہماری معلومات میں نہیں — کوئی آفیشل سینڈر نہیں۔',
+      warn: 'Shak ho to NCCIA 1799 par report karein.',
+    };
+  }
+  return null;
+}
+
+function topicMatch(text) {
+  const t = String(text).toLowerCase();
+  for (const e of KB) {
+    if (e.keys.some(k => t.includes(k))) return { en: e.en, ur: e.ur };
+  }
+  return null;
+}
+
+// Scoped lookup: number-check → KB topic → NCCIA fallback. Never open-ended.
+function guardianReply(text) {
+  return numberCheck(text) || topicMatch(text) || {
+    en: 'Yeh meri knowledge mein nahi — NCCIA 1799.',
+    ur: 'یہ میری معلومات میں نہیں — این سی سی اے 1799۔',
+  };
+}
+
 export default function ChatScreen({ navigation }) {
   const [text, setText] = useState('');
+  // Clean greeting only — every subsequent reply comes from the scoped KB.
   const [messages, setMessages] = useState([
-    { id:'1', from:'bot',  enText:'Assalam o Alaikum Ahmed!', urText:'السلام علیکم! میں آپ کا گارڈین ہوں۔' },
-    { id:'2', from:'user', text:'Kya yeh number theek hai? 0312-1234567' },
-    { id:'3', from:'bot',  enText:'Yeh JazzCash ka official number nahi hai. JazzCash sirf 4444 se SMS bhejta hai.', warn:'Iss number ne 3 logon ko scam kiya hai.' },
-    { id:'4', from:'user', text:'BISP 8171 kya hota hai?' },
-    { id:'5', from:'bot',  urText:'بے نظیر انکم سپورٹ پروگرام صرف 8171 سے پیغام بھیجتا ہے' },
+    { id: '1', from: 'bot',
+      enText: 'Assalam o Alaikum! Main aapka Guardian hoon. Koi number, SMS ya scam type ke baare mein poochein.',
+      urText: 'السلام علیکم! میں آپ کا گارڈین ہوں۔' },
   ]);
 
-  const send = () => {
-    if (!text.trim()) return;
-    const userMsg = { id: Date.now(), from: 'user', text };
-    setMessages(prev => [...prev, userMsg]);
+  const submit = (raw) => {
+    const t = String(raw ?? text).trim();
+    if (!t) return;
+    const reply = guardianReply(t);
+    const now = Date.now();
+    setMessages(prev => [...prev,
+      { id: now,     from: 'user', text: t },
+      { id: now + 1, from: 'bot', enText: reply.en, urText: reply.ur, warn: reply.warn },
+    ]);
     setText('');
-    setTimeout(() => {
-      const botMsg = {
-        id: Date.now() + 1,
-        from: 'bot',
-        enText: 'Main aapki madad karne ke liye tayar hoon.',
-        urText: 'میں آپ کی مدد کرنے کے لیے تیار ہوں۔',
-      };
-      setMessages(prev => [...prev, botMsg]);
-    }, 1000);
   };
 
   return (
@@ -52,11 +155,12 @@ export default function ChatScreen({ navigation }) {
         </LinearGradient>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACE.sm }}>
-            <Text style={{ fontFamily: FONTS.enExtra, fontSize: SIZE.base, color: COLORS.text }}>Guardian</Text>
+            <Text numberOfLines={1} style={{ fontFamily: FONTS.enExtra, fontSize: SIZE.base, color: COLORS.text, flexShrink: 1 }}>Guardian</Text>
             <View style={styles.aiBadge}><Text style={styles.aiBadgeText}>AI</Text></View>
+            <DemoBadge style={{ alignSelf: 'center' }} />
           </View>
-          <Text style={{ fontFamily: FONTS.enMedium, fontSize: SIZE.xs, color: COLORS.accent, marginTop: SPACE.xs }}>
-            ● Online · Replies in Urdu / English
+          <Text numberOfLines={1} style={{ fontFamily: FONTS.enMedium, fontSize: SIZE.xs, color: COLORS.accent, marginTop: SPACE.xs }}>
+            ● Online · Urdu / English
           </Text>
         </View>
       </View>
@@ -71,12 +175,12 @@ export default function ChatScreen({ navigation }) {
           </View>
         </ScrollView>
 
-        {/* Suggestions — horizontal rail, swipeable */}
+        {/* Suggestions — horizontal rail, swipeable; tap to ask */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false}
           style={{ backgroundColor: COLORS.bg }}
           contentContainerStyle={styles.suggestionRail}>
           {SUGGESTIONS.map((s, i) => (
-            <Pressable key={i} style={styles.suggestion}>
+            <Pressable key={i} style={styles.suggestion} onPress={() => submit(s)}>
               <Text style={{ fontFamily: FONTS.enSemibold, fontSize: SIZE.sm, color: COLORS.primary }}>{s}</Text>
             </Pressable>
           ))}
@@ -87,13 +191,15 @@ export default function ChatScreen({ navigation }) {
           <View style={[styles.inputWrap, SHADOW.soft]}>
             <TextInput
               value={text} onChangeText={setText}
+              onSubmitEditing={() => submit()}
+              returnKeyType="send"
               placeholder="Type karein..."
               placeholderTextColor={COLORS.textMuted}
               style={styles.input}
             />
             <Ionicons name="mic" size={SIZE.lg} color={COLORS.textMuted} />
           </View>
-          <Pressable onPress={send} style={[styles.sendBtn, SHADOW.elevated]}>
+          <Pressable onPress={() => submit()} style={[styles.sendBtn, SHADOW.elevated]}>
             <LinearGradient colors={gradients.hero.colors} start={gradients.hero.start} end={gradients.hero.end}
               style={StyleSheet.absoluteFill}
             />

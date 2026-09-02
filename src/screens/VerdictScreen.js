@@ -18,10 +18,11 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring, withDelay } fro
 import { COLORS, FONTS, SIZE, RADIUS, SPACE, SHADOW, gradients } from '@/theme/tokens';
 import { typo } from '@/theme/typography';
 import ThreatRing from '@/components/ThreatRing';
-import { ScamTypeChip } from '@/components/Indicators';
+import { ScamTypeChip, DemoBadge } from '@/components/Indicators';
 import { BottomSheet } from '@/components/Overlays';
 import { Avatar } from '@/components/Cards';
 import { alertGuardian } from '@/services/api';
+import { LocalDBService } from '@/services/LocalDBService';
 // ScamTypeChip is available for the Library/Screenshot screens; the scam verdict
 // deliberately uses only the evidence chips to keep the card inside one screen.
 
@@ -58,8 +59,13 @@ export default function VerdictScreen({ route, navigation }) {
     Speech.speak(line, { language: 'ur-PK', rate: 0.9, pitch: 1 });
   };
   useEffect(() => {
-    const t = setTimeout(speakVerdict, 1000);
-    return () => { clearTimeout(t); Speech.stop(); };
+    let t;
+    (async () => {
+      // Respect the Profile → voice-narration preference (persisted, default on).
+      const voiceOn = await LocalDBService.getVoicePref();
+      if (voiceOn) t = setTimeout(speakVerdict, 1000);
+    })();
+    return () => { if (t) clearTimeout(t); Speech.stop(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Family Shield simulation — scam verdicts auto-alert the guardian.
@@ -182,6 +188,7 @@ export default function VerdictScreen({ route, navigation }) {
             <View style={{ flex: 1 }}>
               <Text style={styles.alertTitle}>Guardian Alert Bheja Gaya</Text>
               <Text style={[typo.bodyUrSm, { marginTop: SPACE.xs }]}>گھر کے سرپرست کو خبر بھیج دی گئی</Text>
+              <DemoBadge style={{ marginTop: SPACE.sm }} />
             </View>
           </View>
 
