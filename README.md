@@ -327,7 +327,7 @@ Airplane-mode repeat of step 4 on Phone A: the verdict must still land
 │   ├── theme/                 # tokens.js + typography.js — single visual source
 │   ├── components/            # ThreatRing · Indicators · Cards · Overlays
 │   ├── services/              # api.js (3s race) · offlineEngine · LocalDB · Family
-│   ├── screens/               # 13 screens incl. LoadingScreen + ProfileScreen
+│   ├── screens/               # 14 screens incl. LoadingScreen + ProfileScreen
 │   └── navigation/            # stack + 5-tab bar
 ├── app.json                   # DEMO-BUILD: usesCleartextTraffic for LAN http
 ├── eas.json                   # preview profile → internal APK
@@ -349,7 +349,7 @@ Languages: exactly three — English · اردو · Roman Urdu.
 
 <div align="center">
 
-**Built with Qoder, at AI speed** — app (13 screens) + backend cascade +
+**Built with Qoder, at AI speed** — app (14 screens) + backend cascade +
 training pipeline co-built in days, not months. Automated verification:
 **4/4 cascade harness PASS** plus a documentation-integrity audit.
 
