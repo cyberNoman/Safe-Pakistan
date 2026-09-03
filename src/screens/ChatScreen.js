@@ -163,7 +163,9 @@ const KB = [
 // Number-check rule (kept): a known shortcode confirms the official sender;
 // an unknown phone-like number is flagged and pointed to NCCIA 1799.
 function numberCheck(text) {
-  const runs = String(text).match(/\d{3,}/g) || [];
+  // Urdu input may use Eastern Arabic digits (۰-۹), which \d does not match.
+  const normalized = String(text).replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+  const runs = normalized.match(/\d{3,}/g) || [];
   if (!runs.length) return null;
   for (const r of runs) {
     const hit = SHORTCODES[r];
@@ -182,8 +184,56 @@ function numberCheck(text) {
   return null;
 }
 
+// ── Urdu-script coverage ───────────────────────────────────────────────
+// The KB keys are all Latin, so an elder typing in اردو previously hit the
+// "not in my knowledge" fallback on every question — in a 3-language app whose
+// headline audience reads Urdu. One synonym table maps Urdu-script terms onto an
+// EXISTING KB key, so every entry (and any added later) resolves without
+// duplicating keys into sixteen records. Answers stay verbatim from the KB;
+// this widens the question side only, never the facts.
+const URDU_SYNONYMS = [
+  [['او ٹی پی', 'کوڈ', 'پاس ورڈ'], 'otp'],
+  [['شناختی کارڈ', 'سی این آئی سی', 'شناخت'], 'cnic'],
+  [['نادرا'], 'nadra'],
+  [['انعام', 'لاٹری', 'جیت', 'انعامی'], 'prize'],
+  [['لنک', 'ویب سائٹ', 'ویب'], 'link'],
+  [['بی آئی ایس پی', 'احساس', 'بے نظیر'], 'bisp'],
+  [['جاز کیش', 'جازکیش'], 'jazzcash'],
+  [['ایزی پیسہ', 'ایزیپیسہ'], 'easypaisa'],
+  [['یو بی ایل'], 'ubl'],
+  [['این سی سی اے', 'شکایت', 'رپورٹ', 'سائبر کرائم', 'سائبر'], 'nccia'],
+  [['ہیلپ لائن', 'ہیلپلاین'], 'helpline'],
+  [['اسٹیٹ بینک'], 'state bank'],
+  [['اکاؤنٹ', 'کھاتہ'], 'account block'],
+  [['بینک'], 'state bank'],
+  [['پی ٹی اے', 'سپیم'], 'pta'],
+  [['ایف بی آر', 'ٹیکس'], 'fbr'],
+  [['نوکری', 'ویزا'], 'job'],
+  [['رومانس', 'پیار', 'محبت', 'شادی'], 'romance'],
+  [['کیو آر'], 'qr'],
+  [['پارسل', 'کسٹم', 'کورئیر'], 'parcel'],
+  [['دوست'], 'dost'],
+  [['کال'], 'call karein'],
+];
+// Deliberately NOT mapped: bare 'فیس' (fees) and 'پیسے' (money). Both are too
+// common — 'فیس' routed a parcel-customs question to the job/visa answer because
+// the job entry sits earlier in the KB, and 'پیسے' would hijack most money
+// questions. The specific terms above carry the intent; a vague money question
+// honestly falls through to the NCCIA 1799 line instead of guessing.
+
+// Appends the Latin key for each Urdu term present, so the existing
+// `t.includes(k)` match in topicMatch finds it. KB order still decides the
+// winner when several terms match.
+function expandUrdu(t) {
+  let extra = '';
+  for (const [urduTerms, key] of URDU_SYNONYMS) {
+    if (urduTerms.some(u => t.includes(u))) extra += ` ${key}`;
+  }
+  return extra;
+}
+
 function topicMatch(text) {
-  const t = String(text).toLowerCase();
+  const t = String(text).toLowerCase() + expandUrdu(String(text));
   for (const e of KB) {
     if (e.keys.some(k => t.includes(k))) return { en: e.en, ur: e.ur };
   }

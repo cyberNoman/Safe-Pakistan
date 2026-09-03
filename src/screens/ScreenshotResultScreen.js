@@ -2,6 +2,11 @@
  * ScreenshotResultScreen — result view for the "Scan Screenshot" action.
  * Pass the picked image URI via route.params.imageUri (expo-image-picker).
  * Fits one 390×844 viewport (no vertical scroll by design).
+ *
+ * KNOWN LIMITATION: the image is picked for real but never analysed. The threat
+ * score (91) and the three findings are canned stand-ins until a vision model is
+ * wired — so the screen carries an on-screen DEMO · SIMULATED badge next to those
+ * numbers. Text/SMS analysis through the L0–L3 cascade IS real; this path is not.
  */
 import React from 'react';
 import { View, Text, Image, ScrollView, Pressable, StyleSheet, StatusBar } from 'react-native';
@@ -10,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { COLORS, FONTS, SIZE, RADIUS, SPACE, SHADOW } from '@/theme/tokens';
 import { typo } from '@/theme/typography';
-import { VerdictBadge } from '@/components/Indicators';
+import { VerdictBadge, DemoBadge } from '@/components/Indicators';
 import { SectionHeader } from '@/components/Cards';
 
 const ISSUES = [
@@ -69,6 +74,11 @@ export default function ScreenshotResultScreen({ route, navigation }) {
                   {issues.length} issues
                 </Text>
               </View>
+              {/* Score and findings are canned — no vision model analyses the picked
+                  image yet. The badge sits beside the numbers it qualifies, so the
+                  screen cannot be read as a real analysis. Row wraps, so this adds
+                  no height on a 390 viewport. */}
+              <DemoBadge />
             </View>
           </View>
         </View>

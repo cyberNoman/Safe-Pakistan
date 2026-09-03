@@ -1,13 +1,18 @@
 /**
  * VoiceScreen — full-screen guardian voice agent.
- * Animated mic with 3 ripples, real-time waveform (mocked here),
- * language chips, state machine: idle / listening / processing / done.
+ * Animated mic with 3 ripples, language chips, hint chips that hand their
+ * question to the Guardian chat, state machine: idle / listening / processing / done.
  *
- * P0 DECISION: voice stays fully MOCKED — waveform animation only, no real
- * audio recording. Real audio metering (expo-av `metering`) is AGENTS.md
- * open task #2 and is intentionally NOT implemented here.
+ * P0 DECISION (unchanged): there is NO speech-to-text engine in this build.
+ * `expo-speech` is text-to-speech ONLY — it cannot listen — and real STT needs a
+ * native module (@react-native-voice/voice) plus a dev build and RECORD_AUDIO,
+ * which is AGENTS.md open task #2. So the screen boots into 'idle' and makes no
+ * capture claim: the audio waveform (an audio-level assertion) is suppressed and
+ * the copy routes users to the hint chips, which are genuinely wired.
+ * The mic ripples remain as ambient brand motion — decoration, not data.
  *
- * Hook up your expo-speech / Voice-recognition layer to setState('listening' | 'processing').
+ * To ship real voice later: record with expo-av `metering`, drive
+ * setState('listening' | 'processing'), and re-enable <Waveform />.
  */
 import React, { useState, useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet, StatusBar } from 'react-native';
@@ -38,12 +43,18 @@ const HINTS = [
 
 export default function VoiceScreen({ navigation }) {
   const [lang, setLang] = useState('ur');
-  const [state, setState] = useState('listening'); // 'idle' | 'listening' | 'processing' | 'done'
+  // Starts 'idle', NOT 'listening'. The previous build booted into a permanent
+  // "● LISTENING / بولیں، میں سن رہا ہوں" state with a fake audio waveform while
+  // the mic tap admitted voice input was unavailable — the screen contradicted
+  // itself. Idle renders no waveform and makes no capture claim.
+  const [state, setState] = useState('idle'); // 'idle' | 'listening' | 'processing' | 'done'
   const [note, setNote] = useState(null);
 
   // Honest fallback: speech-to-text is NOT wired (see the P0 note at the top of
-  // this file). Tapping the mic says so and points at typing instead of faking it.
-  const onMicTap = () => setNote('Voice input device par nahi — type karein');
+  // this file). Tapping the mic says so and points at the chips that DO work.
+  // ChatScreen keeps "type karein" — there the input bar is right under the thumb;
+  // here the tap-to-ask chips are the easier path for a 45+ user.
+  const onMicTap = () => setNote('Voice input device par nahi — neeche se sawaal tap karein');
 
   // A hint chip is a real question → open the Guardian chat with it pre-filled.
   const onHintTap = (h) => navigation?.navigate?.('Main', {
@@ -62,13 +73,15 @@ export default function VoiceScreen({ navigation }) {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle="light-content" />
 
-      {/* Radial backgrounds via two overlapping LinearGradients */}
+      {/* Radial backgrounds via two overlapping LinearGradients.
+          Token-derived: 0x8C = 0.55 alpha, 0x2E = 0.18 alpha, 0x00 = transparent.
+          Previously raw rgba() literals — the one colour in src/ that bypassed tokens. */}
       <LinearGradient
-        colors={['rgba(27,79,216,0.55)', 'rgba(27,79,216,0)']}
-        style={[StyleSheet.absoluteFill, { opacity: 1 }]}
+        colors={[COLORS.primary + '8C', COLORS.primary + '00']}
+        style={StyleSheet.absoluteFill}
       />
       <LinearGradient
-        colors={['rgba(0,200,150,0)', 'rgba(0,200,150,0.18)']}
+        colors={[COLORS.accent + '00', COLORS.accent + '2E']}
         style={StyleSheet.absoluteFill}
         start={{x:0.5, y:0.4}} end={{x:0.5, y:1}}
       />
@@ -107,25 +120,28 @@ export default function VoiceScreen({ navigation }) {
           accessibilityLabel="Mic — voice input is device par available nahi"
           style={({ pressed }) => pressed && { transform: [{ scale: 0.98 }] }}
         >
-          <MicRipples active={state === 'listening'} />
+          {/* Ripples stay as ambient brand motion — they claim nothing about audio.
+              The waveform (an audio-LEVEL claim) is what idle suppresses. */}
+          <MicRipples active />
         </Pressable>
 
         <View style={{ alignItems: 'center', marginTop: SPACE.xl }}>
           <Text style={styles.stateLabel}>
             {state === 'listening' && '● LISTENING'}
             {state === 'processing' && '… PROCESSING'}
-            {state === 'idle' && '○ TAP TO SPEAK'}
+            {state === 'idle' && '○ TYPE KARKE POOCHEIN'}
             {state === 'done' && '✓ DONE'}
           </Text>
           <Text style={enText(SIZE.xl, FONTS.enExtra, COLORS.white, { marginTop: SPACE.sm, textAlign: 'center' })}>
             {state === 'listening' && 'Bolein, main sun raha hoon'}
             {state === 'processing' && 'Samajh raha hoon...'}
-            {state === 'idle' && 'Tap karke shuru karein'}
+            {state === 'idle' && 'Neeche se sawaal chunein'}
             {state === 'done' && 'Aapka jawab tayar hai'}
           </Text>
-          <Text style={[typo.bodyUrInv, { textAlign: 'center', marginTop: 6 }]}>
+          <Text style={[typo.bodyUrInv, { textAlign: 'center', marginTop: SPACE.sm }]}>
             {state === 'listening' && 'بولیں، میں سن رہا ہوں'}
             {state === 'processing' && 'سمجھ رہا ہوں'}
+            {state === 'idle' && 'نیچے سے سوال منتخب کریں'}
           </Text>
         </View>
 
@@ -143,10 +159,18 @@ export default function VoiceScreen({ navigation }) {
 
       {/* Voice hints — tappable: each hands its question to the Guardian chat */}
       <View style={styles.hints}>
+        {/* "YEH BOL KAR DEKHEIN" told users to speak into a screen that cannot
+            listen. This states what a tap actually does, so the chips read as the
+            working path rather than a broken voice feature. */}
         <Text style={enText(SIZE.xs, FONTS.enBold, COLORS.white70, {
-          letterSpacing: 1.2, textAlign: 'center', marginBottom: SPACE.sm,
+          letterSpacing: 1.2, textAlign: 'center',
         })}>
-          YEH BOL KAR DEKHEIN
+          IN MEIN SE TAP KAREIN
+        </Text>
+        <Text style={enText(SIZE.xs, FONTS.enMedium, COLORS.white70, {
+          textAlign: 'center', marginBottom: SPACE.sm,
+        })}>
+          Sawaal Guardian chat mein khul jayega
         </Text>
         {HINTS.map((h, i) => (
           <Pressable key={i} onPress={() => onHintTap(h)}
