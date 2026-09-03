@@ -23,6 +23,16 @@ and اردو (Nastaliq), plus **one tap to warn your family**.
 </div>
 
 ---
+## 60-Second Summary (for non-technical judges)
+
+- **What:** an app that reads any SMS and tells you in 3 seconds — in your
+  own language — if it is a scam, then warns your family in one tap.
+- **For whom:** mothers and elders on slow or zero internet.
+- **Why it wins:** works offline, costs Rs 0 per scan, and never hides its
+  mistakes — every limitation is printed in the app and on this page.
+- **Proof:** 76% accuracy vs 47% for a simple keyword filter on 155 messages
+  it never saw; a live harness that breaks each layer on purpose and still
+  returns an answer.
 
 ## At a glance
 
@@ -248,6 +258,20 @@ plainly, in the README, the model card and the app itself:
 API for banks & telcos — fraud liability down, support cost down. Edge-first
 means near-zero marginal cost per scan (Rs 0 on-device vs ≈ Rs 0.85 cloud).
 **Users never pay. Institutions do.**
+
+## Production Rollout Plan
+
+- **Phase 1 (0–3 mo):** auth + Alibaba Cloud Mobile Push (VISION.md sprint
+  one); pilot with 500 households via Alkhidmat / Bano Qabil network.
+- **Phase 2 (3–9 mo):** telco white-label — spam-SMS feed at the operator,
+  L1 at the edge; bank fraud-desk API.
+- **Phase 3 (9–18 mo):** provincial rollout with NCCIA awareness drives;
+  user corrections become v2 training data (the flywheel).
+- **Phase 4 (18+ mo) — Agentic Guardian:** fully agentic app. Autonomous
+  AI agents act on the user's behalf: auto-filing NCCIA complaints,
+  auto-alerting family, auto-updating the threat library, and coordinating
+  with bank/telco agents over Alibaba Cloud Model Studio.
+  **Humans approve; agents execute.**
 
 ## 7 · Quickstart
 
