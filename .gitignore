@@ -3,7 +3,14 @@ node_modules/
 .qoder/
 dist/
 dist-verify/
+.verify-dist/
 web-build/
+
+# Native folders are generated, not tracked: EAS builds run `expo prebuild`
+# on the server (CNG). A stray local `android/` must never be committed — it
+# pins native code that the managed workflow is meant to regenerate.
+android/
+ios/
 *.log
 .DS_Store
 .env
