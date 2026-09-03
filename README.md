@@ -33,8 +33,9 @@ and اردو (Nastaliq), plus **one tap to warn your family**.
 | **Cost per scan** | **Rs 0** on-device · ≈ Rs 0.85 cloud (quota-shielded) |
 | **Hold-out accuracy** | **74.8–77.4%** (mean 76.3%) vs 46.5% regex baseline — 155 unseen messages |
 | **Resilience** | 4/4 failure-path harness PASS — every outage still returns a verdict |
-| **Family-aware** | Real-time alert to guardians: SMS/WhatsApp deep link **or** Expo push |
-| **Languages** | English · Roman Urdu · اردو (Nastaliq) — voice read-out in ur-PK |
+| **Family-aware** | Real-time alert to guardians, naming the recipient: SMS/WhatsApp deep link **or** Expo push |
+| **Languages** | English · Roman Urdu · اردو (Nastaliq) — chat accepts Urdu script; voice read-out in `ur-PK` with an `en-US` fallback |
+| **Report path** | One tap to a pre-filled **NCCIA** complaint (`complaint@nccia.gov.pk`) or the native share sheet |
 | **Our model** | [hifazat-edge](https://huggingface.co/Noman33/hifazat-edge) — Qwen2.5-1.5B + LoRA, on Hugging Face |
 
 ---
@@ -109,7 +110,8 @@ always lands instantly; the smartest available answer upgrades it silently.
 **Stack:** Expo SDK 54 · React Native 0.81.5 · React 19.1 · Reanimated ·
 react-native-svg · React Navigation v6 · Node/Express backend · Ollama local
 inference · Alibaba Cloud Model Studio (Qwen-Max) · EAS Build (APK) ·
-expo-notifications + Expo push relay · Urdu TTS (ur-PK).
+expo-notifications + Expo push relay · expo-speech TTS (`ur-PK` → `en-US`
+fallback) · expo-clipboard · expo-image-picker · React Native `Share`.
 
 ## 4 · WHAT'S NEW — this demo build
 
@@ -118,13 +120,21 @@ network call, and nothing claims a delivery it did not make.
 
 | New | What it actually does |
 |---|---|
+| **Awaz — verdict read aloud** | `expo-speech` speaks the verdict in Urdu (`ur-PK`). If the device has no Urdu voice it **immediately falls back to Roman Urdu in `en-US`**, so the button makes a sound on stage either way. While speaking it pulses (Reanimated `withRepeat`), swaps to `volume-high`, gains an accent ring, and the band label flips to **"AWAZ CHAL RAHI HAI"**. A generation guard keeps a double-tap from leaving it stuck on "playing". |
+| **Sender Block Karein** | Copies the sender with `expo-clipboard`, toasts *"Number copy ho gaya"*, opens the native SMS app at that number, and says plainly: *"Apne phone ki SMS settings mein is number ko block karein."* Android exposes no third-party block API — the app states that instead of pretending. When no sender is present it says so and points at the NCCIA complaint. |
+| **NCCIA Shikayat** | Opens a pre-filled `mailto:` to **complaint@nccia.gov.pk** carrying a legal-style complaint: sender, the verbatim message, verdict + risk score, red flags, layer attribution (L0 + L1 hifazat-edge + L2 Qwen-Max), victim context, and the action requested. |
+| **Report Share Karein** | The same report as clean plain text through the native `Share.share()` sheet — WhatsApp, SMS or any installed target. |
+| **Share on Home and Scan** | Home shares a plain-text summary of the **real** scan store; Scan shares the message you pasted as a warning. Zero scans reads "No scans yet" rather than inventing figures. |
+| **اردو chat coverage** | The Guardian KB was Latin-keyed only, so every Urdu-script question fell through to "I don't know" — in a 3-language app aimed at Urdu readers. A 22-row synonym table now maps Urdu-script terms onto existing KB keys, plus Eastern-Arabic digit normalisation for the shortcode check. **Answers are unchanged; only the question side widened.** Verified: 14/14 Urdu queries hit the correct entry and off-topic Urdu still falls back honestly. |
+| **Named family alerts** | The SMS/WhatsApp payload leads with the recipient — *"Alert for Ammi: HIFAZAT ALERT …"* — so a forwarded warning never loses its context. |
 | **Real-time Family Alert** | Per member, two paths: **PRIMARY** "Send via SMS / WhatsApp" — a zero-backend deep link (`sms:` / `wa.me`) that opens the native app **pre-filled**, with `03XX…` normalized to `923XX…`; **SECONDARY** "Push Alert" — enabled only when that member registered a real Expo push token, relayed by the backend to `exp.host`. On `sent: 0` it toasts *"Push fail hua — SMS use karein"* and keeps SMS highlighted. |
 | **Push-ready device enrolment** | On the guardian device: *"Is device ko push-ready banayein"* → notification permission → `getExpoPushTokenAsync()` → `POST /family/register`. If the token call throws (Expo Go, no dev build), the app says so plainly — *"Push is build mein available nahi — SMS alert use karein"* — and marks the member **SMS only**. Push is never faked. |
 | **Receiving side** | Foreground → in-app banner with verdict + risk, auto-dismissing. Background → real system notification via Expo/FCM. |
 | **Profile settings** | Notification preferences, scan-history auto-delete, and **JSON export** of your own data. |
-| **Scoped Guardian chat** | Answers only from verified facts. Out of scope it says *"I don't know"* and routes to **NCCIA 1799** instead of inventing legal advice. |
+| **Scoped Guardian chat** | Answers only from verified facts. Out of scope it says *"I don't know"* and routes to **NCCIA 1799** instead of inventing legal advice. No open-ended LLM call is made from chat, and **no API key ships in the client** — every model call is proxied by the backend. |
 | **Real analytics** | Charts are driven by actual stored scans — no seeded mock data, and honest empty states on a fresh install. |
-| **DEMO · SIMULATED badges** | Any surface still standing in for a production integration is labelled on-screen, so a judge is never misled. |
+| **No dead taps** | Every control does something or explains itself. The onboarding *"I already have an account"* button and both mic buttons answer honestly instead of doing nothing. |
+| **DEMO · SIMULATED badges** | Surfaces standing in for a production integration are labelled **on-screen, next to the numbers they qualify** — the Guardian chat header and the Screenshot Result score/findings. |
 
 ## 5 · Measured, not promised — 155-message hold-out
 
@@ -200,6 +210,27 @@ plainly, in the README, the model card and the app itself:
 - **Cloud Run does not yet serve `/family/*`.** Until the backend is
   redeployed, push enrolment returns `{sent: 0}` and the app falls back to the
   SMS/WhatsApp deep link — which needs no backend at all.
+- **Screenshot analysis is not real.** The image is picked for real, but the
+  threat score (91) and the three findings are canned — no vision model runs.
+  That screen now carries a **DEMO · SIMULATED** badge beside those numbers.
+  Text/SMS analysis through L0–L3 *is* real.
+- **There is no speech-to-text.** `expo-speech` is text-to-speech only; it cannot
+  listen. Real STT needs `@react-native-voice/voice` plus a dev build and
+  `RECORD_AUDIO` (AGENTS.md open task #2). Voice Guardian therefore boots into an
+  honest idle state, renders no audio waveform, and routes users to hint chips
+  that pre-fill the Guardian chat — which does answer.
+- **The sender is never guessed.** ScanScreen captures the message body only, so
+  a sender exists only if the user pasted one. Extraction accepts an unambiguous
+  Pakistani mobile pattern or a shortcode at the very head of the paste; a bare
+  4–5 digit run mid-sentence is far more often an amount (*"Rs 25000"*) than a
+  shortcode. Naming an amount as the sender in an NCCIA complaint would be a
+  fabricated accusation, so the app says "sender not present" instead.
+- **Android exposes no third-party SMS-block API.** "Sender Block Karein" copies
+  the number and opens the SMS app; the block itself is a manual step in the
+  user's own settings, and the screen states that rather than implying success.
+- **Two Home/Verdict numbers are fixed design values, not measurements:** the
+  hero "PROTECTED 98" ring and the "Rs 50,000 bachaya" card. The scan counters,
+  verdicts, scores, red flags, layer attribution and analytics are all real.
 - A false SAFE is more harmful than a false SCAM, so the cascade prefers
   escalation over guessing. Verdicts are not legal advice; reporting goes to
   **NCCIA Shikayat** (helpline **1799**).
@@ -284,9 +315,11 @@ Both phones on the **same hotspot**, laptop backend running on `:3000`.
 | 2 | Family Shield → **add member**: name, role, **phone number** (required) → saved to device | — |
 | 3 | Tap **"Is device ko push-ready banayein"** → allow notifications → token registers → chip reads **"Push linked"**. In Expo Go it honestly reads **"SMS only"** | — |
 | 4 | — | Scan → the **"25,000 OTP"** preset → verdict **SCAM, 96 red** |
-| 5 | — | **Family Ko Batain** → pick the member → **PRIMARY "Send via SMS / WhatsApp"** → native SMS opens **pre-filled** |
-| 6 | — | **SECONDARY "Push Alert"** (live only with a real token) → **"Push sent · real"** |
-| 7 | Foreground → **in-app banner** with verdict + risk. Backgrounded → **system notification** | On `sent: 0` → toast *"Push fail hua — SMS use karein"*, SMS stays highlighted |
+| 5 | — | **Awaz** → the verdict is read aloud (Urdu, or Roman Urdu on `en-US` if the device has no Urdu voice). The button pulses and the band flips to **AWAZ CHAL RAHI HAI** |
+| 6 | — | **NCCIA Shikayat** → the mail app opens with a complete legal complaint · **Report Share Karein** → native share sheet · **Sender Block** → number copied + SMS app opened |
+| 7 | — | **Family Ko Batain** → pick the member → **PRIMARY "Send via SMS / WhatsApp"** → native SMS opens **pre-filled and addressed**: *"Alert for Ammi: HIFAZAT ALERT …"* |
+| 8 | — | **SECONDARY "Push Alert"** (live only with a real token) → **"Push sent · real"** |
+| 9 | Foreground → **in-app banner** with verdict + risk. Backgrounded → **system notification** | On `sent: 0` → toast *"Push fail hua — SMS use karein"*, SMS stays highlighted |
 
 Airplane-mode repeat of step 4 on Phone A: the verdict must still land
 (L3 floor, 0ms) — the "cannot break" moment.
