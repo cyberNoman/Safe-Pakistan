@@ -40,10 +40,13 @@ function toIntl(raw) {
   else if (n && !n.startsWith('92')) n = '92' + n;
   return n;
 }
-// The alert body sent verbatim over SMS / WhatsApp.
-function buildAlertMessage(scamType, risk, flags) {
+// The alert body sent verbatim over SMS / WhatsApp. The recipient's name leads
+// the message, so a family member opening it sees at once who it was meant for —
+// an elder forwarded a warning without context is how scams still land.
+function buildAlertMessage(memberName, scamType, risk, flags) {
   const f = Array.isArray(flags) ? flags.join(', ') : String(flags || '');
-  return `HIFAZAT ALERT: ${scamType} scam SMS detected. Risk ${risk}/100. Red flags: ${f}. Do not reply. - Hifazat App`;
+  const head = memberName ? `Alert for ${memberName}: ` : '';
+  return `${head}HIFAZAT ALERT: ${scamType} scam SMS detected. Risk ${risk}/100. Red flags: ${f}. Do not reply. - Hifazat App`;
 }
 
 // ── Sender extraction (pure, no backend) ──
@@ -213,16 +216,16 @@ export default function VerdictScreen({ route, navigation }) {
     return () => clearTimeout(t);
   }, [toast]);
 
-  const alertMsg = buildAlertMessage(type, score, redFlags);
-
   // PRIMARY — zero backend: open the native SMS app / WhatsApp with a pre-filled
   // alert. This is the reliable path and the mandatory demo pass.
   const openChannel = async (m, channel) => {
     const num = toIntl(m.phone);
     if (!num) { setToast('Phone number nahi hai'); return; }
+    // Built per member so the recipient's name is inside the payload itself.
+    const body = buildAlertMessage(m.name, type, score, redFlags);
     const url = channel === 'sms'
-      ? `sms:${num}?body=${encodeURIComponent(alertMsg)}`
-      : `https://wa.me/${num}?text=${encodeURIComponent(alertMsg)}`;
+      ? `sms:${num}?body=${encodeURIComponent(body)}`
+      : `https://wa.me/${num}?text=${encodeURIComponent(body)}`;
     try {
       await Linking.openURL(url);
     } catch (e) {

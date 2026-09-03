@@ -4,7 +4,7 @@
  * Wire `onAnalyze` to your backend (see README).
  */
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, StatusBar } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, Share, StyleSheet, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
@@ -60,6 +60,20 @@ export default function ScanScreen({ navigation }) {
     });
   };
 
+  // Share chip → native share sheet. Contextual: if a message is pasted, share
+  // that warning (the reason you are on this screen); otherwise share the app
+  // invite. Never a dead tap, and never invents a verdict we did not compute.
+  const shareCurrent = async () => {
+    const body = text.trim()
+      ? `HIFAZAT WARNING — yeh SMS jaanch ke liye bheja ja raha hai:\n\n"${text.trim()}"\n\nIska jawab na dein. Hifazat App se jaanchein.`
+      : 'Hifazat App — Apne Ghar Ki Hifazat.\nShak wala SMS, WhatsApp ya screenshot jaanchein aur SCAM / SUSPICIOUS / SAFE ka faisla paayein.';
+    try {
+      await Share.share({ message: body, title: 'Hifazat — Safe Pakistan' });
+    } catch (e) {
+      // Dismissed sheet or no share target — not an error worth surfacing.
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle="dark-content" />
@@ -89,7 +103,7 @@ export default function ScanScreen({ navigation }) {
           <View style={{ flexDirection: 'row', gap: SPACE.sm, marginTop: SPACE.sm }}>
             <Chip icon="camera-outline" label="Screenshot" onPress={pickScreenshot} />
             <Chip icon="mic-outline"    label="Awaaz" onPress={() => navigation?.navigate?.('Voice')} />
-            <Chip icon="share-outline"  label="Share" />
+            <Chip icon="share-outline"  label="Share" onPress={shareCurrent} />
           </View>
         </View>
 
@@ -146,7 +160,8 @@ export default function ScanScreen({ navigation }) {
 
 function Chip({ icon, label, onPress }) {
   return (
-    <Pressable onPress={onPress} style={styles.chip}>
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}
+      style={({ pressed }) => [styles.chip, pressed && { transform: [{ scale: 0.98 }] }]}>
       <Ionicons name={icon} size={SIZE.base} color={COLORS.primary} />
       <Text style={{ fontFamily: FONTS.enBold, fontSize: SIZE.sm, color: COLORS.primary }}>{label}</Text>
     </Pressable>
@@ -189,9 +204,12 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.enMedium, fontSize: SIZE.base, color: COLORS.text, lineHeight: SIZE.base * 1.5,
     textAlignVertical: 'top',
   },
+  // Chip rail budget: three chips must fit the input card's inner width on a
+  // 360dp device (~280px) as well as 390 (~310px). SPACE.md padding overran both;
+  // SPACE.sm lands at ~273px so nothing clips or wraps.
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: SPACE.sm,
-    paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm, borderRadius: RADIUS.chip,
+    paddingHorizontal: SPACE.sm, paddingVertical: SPACE.sm, borderRadius: RADIUS.chip,
     backgroundColor: COLORS.surface2,
     borderWidth: 1, borderColor: COLORS.primary + '25',
     minHeight: 44, justifyContent: 'center',

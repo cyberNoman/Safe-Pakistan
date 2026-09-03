@@ -8,7 +8,7 @@
  *   - navigation prop from React Navigation
  */
 import React from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, StatusBar } from 'react-native';
+import { View, Text, ScrollView, Pressable, Share, StyleSheet, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,6 +38,27 @@ export default function HomeScreen({ navigation }) {
     time: relTime(s.ts),
   }));
 
+  // Share — a plain-text summary built ONLY from the real scan store. Zero scans
+  // says "No scans yet" rather than inventing numbers; nothing here is fabricated.
+  const shareSummary = async () => {
+    const lines = recent.map(r => `• ${r.type} (${r.time}) — ${r.message}`.slice(0, 120));
+    const body = [
+      'HIFAZAT — Safe Pakistan | Apne Ghar Ki Hifazat',
+      '',
+      `Scans: ${scanCount} · Blocked: ${blockedCount} · Safe: ${safeCount}`,
+      '',
+      lines.length ? 'Recent activity:' : 'No scans yet.',
+      ...lines,
+      '',
+      'Shak wala SMS Hifazat se jaanchein. NCCIA cybercrime helpline: 1799.',
+    ].join('\n');
+    try {
+      await Share.share({ message: body, title: 'Hifazat — Scan Summary' });
+    } catch (e) {
+      // Dismissed sheet or no share target — nothing to surface.
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle="dark-content" />
@@ -56,9 +77,13 @@ export default function HomeScreen({ navigation }) {
             </Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACE.sm }}>
-            <Pressable style={[styles.iconBtn, SHADOW.soft]} onPress={() => navigation?.navigate?.('Notifications')}>
-              <Ionicons name="notifications-outline" size={SIZE.xl} color={COLORS.text} />
-              <View style={styles.dot} />
+            {/* Share replaces the old bell: that bell navigated to a 'Notifications'
+                route which does not exist, and its red dot implied unread alerts the
+                app never produces. This is a real action on the same 44×44 footprint. */}
+            <Pressable style={({ pressed }) => [styles.iconBtn, SHADOW.soft, pressed && { transform: [{ scale: 0.98 }] }]}
+              onPress={shareSummary} hitSlop={SIZE.xs}
+              accessibilityRole="button" accessibilityLabel="Scan summary share karein">
+              <Ionicons name="share-social-outline" size={SIZE.xl} color={COLORS.text} />
             </Pressable>
             <Pressable onPress={() => navigation?.navigate?.('Profile')} hitSlop={SIZE.xs}>
               <Avatar name={userName} color={COLORS.primary} size={44} />
@@ -136,12 +161,7 @@ const styles = StyleSheet.create({
   iconBtn: {
     width: 44, height: 44, borderRadius: RADIUS.icon,
     backgroundColor: COLORS.surface,
-    alignItems: 'center', justifyContent: 'center', position: 'relative',
-  },
-  dot: {
-    position: 'absolute', top: SPACE.sm, right: SPACE.sm,
-    width: 8, height: 8, borderRadius: RADIUS.chip,
-    backgroundColor: COLORS.danger, borderWidth: 2, borderColor: COLORS.white,
+    alignItems: 'center', justifyContent: 'center',
   },
   hero: {
     flexDirection: 'row', alignItems: 'center', gap: SPACE.md,
