@@ -7,7 +7,7 @@
  *  - Urdu voice narration speaks the verdict after the reveal (expo-speech).
  *  - Scam verdicts auto-fire the Family Shield guardian alert sheet.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, Pressable, Alert, StyleSheet, StatusBar, Share } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -24,12 +24,27 @@ import { ScamTypeChip } from '@/components/Indicators';
 import { BottomSheet } from '@/components/Overlays';
 import { Avatar, EmptyState } from '@/components/Cards';
 import { sendFamilyAlert } from '@/services/api';
-import { LocalDBService } from '@/services/LocalDBService';
+import { LocalDBService, savedEstimateFor } from '@/services/LocalDBService';
+import { useLanguageContext } from '@/context/LanguageContext';
 // ScamTypeChip is available for the Library/Screenshot screens; the scam verdict
 // deliberately uses only the evidence chips to keep the card inside one screen.
 
 // Avatar colours cycle through brand tokens only (no hardcoded hex).
 const PALETTE = [COLORS.primary, COLORS.accentDk, COLORS.warning, COLORS.primaryLt, COLORS.accent];
+
+// Awaz (TTS) honesty strings. A silent button on stage must say WHY out loud,
+// and point at the exact system setting — never pretend audio is playing.
+const TOAST_NO_ENGINE = 'Awaz engine phone par nahi — Settings → Text-to-speech';
+const TOAST_SPEAK_FAIL = 'Awaz nahi chali — Settings → Language & input → Text-to-speech';
+const TOAST_VOLUME = 'Phone ka MEDIA volume up karein';
+// Watchdog: some engines fire no onDone/onError/onStopped at all. The button
+// must never pulse forever, so 10s of silence stops the audio and reverts UI.
+const SPEAK_TIMEOUT_MS = 10000;
+// The scanned message quoted inside a family alert, capped for SMS sanity.
+const ALERT_TEXT_CAP = 140;
+// NCCIA online complaint portal — used in the report body and as a fallback
+// action when the mailto link cannot open (no email app installed).
+const NCCIA_PORTAL_URL = 'https://complaint.nccia.gov.pk';
 
 // ── Family-alert deep-link helpers (pure, zero backend) ──
 // Normalize a Pakistani number to intl form for wa.me / sms: (03XX… → 923XX…).
@@ -40,13 +55,67 @@ function toIntl(raw) {
   else if (n && !n.startsWith('92')) n = '92' + n;
   return n;
 }
-// The alert body sent verbatim over SMS / WhatsApp. The recipient's name leads
-// the message, so a family member opening it sees at once who it was meant for —
-// an elder forwarded a warning without context is how scams still land.
-function buildAlertMessage(memberName, scamType, risk, flags) {
-  const f = Array.isArray(flags) ? flags.join(', ') : String(flags || '');
-  const head = memberName ? `Alert for ${memberName}: ` : '';
-  return `${head}HIFAZAT ALERT: ${scamType} scam SMS detected. Risk ${risk}/100. Red flags: ${f}. Do not reply. - Hifazat App`;
+// The alert body sent verbatim over SMS / WhatsApp and inside the push relay.
+// The SCANNER is the victim: a guardian must see WHO got the message and read
+// the message itself — an elder forwarding a bare warning with no context is how
+// scams still land. `name` is this phone's stored profile name ('' ⇒ "Ghar wale").
+// `lang`: 'en' → English payload, anything else → Roman Urdu (the demo default).
+function buildAlertMessage({ name = '', score = 0, text = '', lang = 'ru' } = {}) {
+  const victim = String(name || '').trim();
+  const risk = Number(score) || 0;
+  const quote = String(text || '').replace(/\s+/g, ' ').trim().slice(0, ALERT_TEXT_CAP);
+  // EN branch: spec-exact — deliberately omits the message quote (privacy).
+  // Roman Urdu branch carries the quote so the guardian sees the actual message.
+  if (lang === 'en') {
+    return victim
+      ? `HIFAZAT ALERT: ${victim} received this message — SCAM (Risk ${risk}/100). Stop ${victim} sending OTP/money. Call them now.`
+      : `HIFAZAT ALERT: A family member received this message — SCAM (Risk ${risk}/100). Stop them sending OTP/money. Call them now.`;
+  }
+  const got = victim ? `${victim} ko yeh message mila hai` : 'Ghar wale ko yeh message mila hai';
+  const stop = victim ? `${victim} ko OTP/paisa bhejne se rokein.` : 'Un ko OTP/paisa bhejne se rokein.';
+  const body = quote ? ` Message: '${quote}'.` : '';
+  return `HIFAZAT ALERT: ${got} — SCAM (Risk ${risk}/100).${body} ${stop} Unhein foran call karein.`;
+}
+
+// ── Amount extraction (pure, no backend) — exported for LoadingScreen ──
+// A scam SMS almost always quotes a rupee figure, and that figure — not a
+// guess — is what "bachaya" reports. Eastern Arabic digits (۰-۹) are normalized
+// first because \d does not match them (same trick as ChatScreen's number check).
+// FIRST match wins, in this order: currency-anchored → comma-grouped → k-suffix.
+// Deliberately blind to phone numbers (03xx / 923xx), CNICs and bare shortcodes
+// (8171 / 4444 / 3737): none of those carry an Rs anchor, comma grouping or a
+// "k", so calling one an amount would invent a loss nobody ever quoted.
+export function extractAmount(text) {
+  const t = String(text || '').replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+  const value = (raw, kilo) => {
+    const n = parseFloat(String(raw).replace(/,/g, ''));
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return Math.round(kilo ? n * 1000 : n);
+  };
+  // (a) currency-anchored — "Rs 5,000", "Rs.25000", "PKR 1,25,000", "روپے 25000"
+  // \b on the Latin branch prevents "members" matching trailing "rs";
+  // Urdu branch needs no \b (JS \b is ASCII-only and "روپے" is always standalone).
+  // k\b prevents "ko/ka/ki" from being swallowed as a kilo suffix.
+  const cur = t.match(/(?:\b(?:Rs\.?|PKR)|روپے)\s*(\d[\d,]*(?:\.\d+)?)\s*(k\b)?/i);
+  if (cur) {
+    const amt = value(cur[1], cur[2]);
+    if (amt) return { amount: amt, found: true };
+  }
+  // (b) comma-grouped thousands — "25,000", "1,25,000" (lakh grouping)
+  const groups = t.match(/\d{1,3}(?:,\d{2,3})+/g);
+  if (groups) {
+    for (const g of groups) {
+      const amt = value(g);
+      if (amt) return { amount: amt, found: true };
+    }
+  }
+  // (c) k-suffix — "10k" = 10000, "1.5k" = 1500 ("km" cannot match: \b after k)
+  const kilo = t.match(/(\d+(?:\.\d+)?)\s*k\b/i);
+  if (kilo) {
+    const amt = value(kilo[1], true);
+    if (amt) return { amount: amt, found: true };
+  }
+  return { amount: 0, found: false };
 }
 
 // ── Sender extraction (pure, no backend) ──
@@ -93,6 +162,8 @@ Language: Urdu/Roman Urdu
 ACTION REQUESTED:
 Please investigate sender for financial fraud and targeting vulnerable populations.
 
+Online Portal: ${NCCIA_PORTAL_URL} | Helpline: 1799
+
 App Version: Hifazat v1.0 | Model Card: huggingface.co/Noman33/hifazat-edge`;
   return { subject, body };
 }
@@ -108,6 +179,19 @@ export default function VerdictScreen({ route, navigation }) {
   const messageText      = route?.params?.messageText ?? '';
   const senderNumber     = extractSender(messageText);
   const insets = useSafeAreaInsets();
+  // 'en' | 'ur' | 'ru' — the hook returns {} outside its provider, so default to
+  // Roman Urdu (the demo default) rather than crashing on a missing language.
+  const { language = 'ru' } = useLanguageContext() || {};
+  const alertLang = language === 'en' ? 'en' : 'ru';
+
+  // Money saved: the rupee figure the message itself quotes. When it quotes
+  // none, the per-type estimate stands in and the card says "ESTIMATED" openly.
+  const saved = useMemo(() => {
+    const hit = extractAmount(messageText);
+    return hit.found
+      ? { amount: hit.amount, estimated: false }
+      : { amount: savedEstimateFor(type), estimated: true };
+  }, [messageText, type]);
 
   const isScam = verdict === 'scam';
   const isSusp = verdict === 'suspicious';
@@ -117,9 +201,15 @@ export default function VerdictScreen({ route, navigation }) {
   const [familyCode, setFamilyCode] = useState('');
   const [pushState, setPushState] = useState({});  // { [id]: 'sending'|'sent'|'fail' }
   const [smsHot, setSmsHot] = useState({});         // { [id]: true } after a push failure
+  const [victimName, setVictimName] = useState('');  // this phone's owner = the victim
   const [toast, setToast] = useState(null);
   const [speaking, setSpeaking] = useState(false);
   const speechId = useRef(0);   // utterance generation — see speakVerdict()
+  const speakTimer = useRef(null); // 10s watchdog — see speakVerdict()
+  const alive = useRef(true);   // FIX 3: liveness guard for async speakVerdict
+  const clearSpeakTimer = () => {
+    if (speakTimer.current) { clearTimeout(speakTimer.current); speakTimer.current = null; }
+  };
 
   // Slide-down entrance for the verdict band
   const bandY = useSharedValue(-40);
@@ -128,22 +218,15 @@ export default function VerdictScreen({ route, navigation }) {
   }, []);
   const bandStyle = useAnimatedStyle(() => ({ transform: [{ translateY: bandY.value }] }));
 
-  // Urdu voice narration with a guaranteed-sound fallback chain:
-  //   ur-PK Urdu  →  (error / missing engine)  →  en-US Roman Urdu.
-  // expo-speech reports a missing voice engine through onError, so both paths are
-  // covered. The button must make a sound on stage no matter what the device has.
-  const speakRomanFallback = (line, reset) => {
-    try {
-      Speech.speak(line, {
-        language: 'en-US', rate: 0.95, pitch: 1,
-        onDone: reset, onStopped: reset, onError: reset,
-      });
-    } catch (e) {
-      reset();
-    }
-  };
-
-  const speakVerdict = () => {
+  // Urdu voice narration with an HONEST sound-or-say-why chain:
+  //   no engine on the device → toast + STOP (no fake pulse, no silent lie)
+  //   ur-PK Urdu  →  (error)  →  en-US Roman Urdu  →  (error)  →  toast.
+  // Profile language 'en' skips Urdu and speaks the Roman line with en-US at once.
+  // FIX 2: bounded 1500ms probe (Android hangs forever with no engine installed).
+  // FIX 3: alive ref guards every continuation after an await.
+  // FIX 4: resolves from onStart (real audio) not "speak didn't throw".
+  // FIX 5: `silent` suppresses toasts for auto-speak (not user-initiated).
+  const speakVerdict = async ({ silent = false } = {}) => {
     const urdu = isScam
       ? (explanationUrdu || 'یہ پیغام جعلی ہے۔ او ٹی پی کبھی شیئر نہ کریں۔')
       : isSusp
@@ -154,22 +237,95 @@ export default function VerdictScreen({ route, navigation }) {
       : isSusp
         ? 'Yeh message mashkook hai. Ehtiyat zaroor karein.'
         : 'Yeh message mehfooz hai.';
+
+    // FIX 2: Engine probe bounded to 1500ms. On Android, getAvailableVoicesAsync
+    // NEVER settles when no TTS engine is installed (promise queued until engine
+    // init SUCCESS). A timeout falls through to the speak attempt where the
+    // watchdog + onError chain handle failure honestly.
+    let voices = null;
+    try {
+      voices = await Promise.race([
+        Speech.getAvailableVoicesAsync(),
+        new Promise((r) => setTimeout(() => r('timeout'), 1500)),
+      ]);
+    } catch (e) { voices = null; }
+    if (!alive.current) return false;
+    if (Array.isArray(voices) && voices.length === 0) {
+      if (!silent) setToast(TOAST_NO_ENGINE);
+      return false;
+    }
+    // null/'timeout'/non-empty → inconclusive or fine: ATTEMPT the speak;
+    // onError chain + watchdog report honestly.
+
     // Generation guard: Speech.stop() fires onStopped for the PREVIOUS utterance.
     // Without this, a double-tap would clear the new "speaking" state and leave
     // the button looking idle while audio is still playing.
     const id = ++speechId.current;
-    const reset = () => { if (speechId.current === id) setSpeaking(false); };
+    const reset = () => { if (speechId.current === id) { clearSpeakTimer(); setSpeaking(false); } };
+    clearSpeakTimer();
+    speakTimer.current = setTimeout(() => {
+      speakTimer.current = null;
+      if (!alive.current) return;
+      if (speechId.current !== id) return;
+      try { Speech.stop(); } catch (e) { /* ignore */ }
+      setSpeaking(false);
+    }, SPEAK_TIMEOUT_MS);
     Speech.stop();
     setSpeaking(true);
-    try {
-      Speech.speak(urdu, {
-        language: 'ur-PK', rate: 0.9, pitch: 1,
-        onDone: reset, onStopped: reset,
-        onError: () => speakRomanFallback(roman, reset),
-      });
-    } catch (e) {
-      speakRomanFallback(roman, reset);
-    }
+
+    // FIX 4: Resolve `started` from expo-speech's onStart callback — proves real
+    // audio began. A 2500ms no-start timeout fires false if the engine never
+    // begins playback (only the failure toast wins, never the volume hint).
+    const started = await new Promise((resolve) => {
+      let settled = false;
+      const settle = (val) => { if (!settled) { settled = true; clearTimeout(noStart); resolve(val); } };
+      const noStart = setTimeout(() => { settle(false); reset(); }, 2500);
+
+      const speakRoman = () => {
+        try {
+          Speech.speak(roman, {
+            language: 'en-US', rate: 0.95, pitch: 1,
+            onStart: () => settle(true),
+            onDone: reset, onStopped: reset,
+            onError: () => { settle(false); reset(); if (!silent) setToast(TOAST_SPEAK_FAIL); },
+          });
+        } catch (e) {
+          settle(false); reset(); if (!silent) setToast(TOAST_SPEAK_FAIL);
+        }
+      };
+
+      try {
+        if (language === 'en') {
+          Speech.speak(roman, {
+            language: 'en-US', rate: 0.95, pitch: 1,
+            onStart: () => settle(true),
+            onDone: reset, onStopped: reset,
+            onError: () => { settle(false); reset(); if (!silent) setToast(TOAST_SPEAK_FAIL); },
+          });
+        } else {
+          Speech.speak(urdu, {
+            language: 'ur-PK', rate: 0.9, pitch: 1,
+            onStart: () => settle(true),
+            onDone: reset, onStopped: reset,
+            onError: () => speakRoman(),
+          });
+        }
+      } catch (e) {
+        speakRoman();
+      }
+    });
+    if (!alive.current) return false;
+    return started;
+  };
+
+  // Awaz button. On the first tap EVER it also reminds about MEDIA volume —
+  // persisted, so it never nags again — but only when audio really started.
+  const onAwazPress = async () => {
+    const started = await speakVerdict();
+    if (!started) return;
+    if (await LocalDBService.getVolumeHintShown()) return;
+    await LocalDBService.setVolumeHintShown(true);
+    setToast(TOAST_VOLUME);
   };
 
   // Speaking feedback — the icon pulses while audio plays, reverts on onDone.
@@ -189,16 +345,21 @@ export default function VerdictScreen({ route, navigation }) {
     (async () => {
       // Respect the Profile → voice-narration preference (persisted, default on).
       const voiceOn = await LocalDBService.getVoicePref();
-      if (voiceOn) t = setTimeout(speakVerdict, 1000);
+      // FIX 5: silent=true suppresses toasts for auto-speak (not user-initiated).
+      if (voiceOn && alive.current) t = setTimeout(() => speakVerdict({ silent: true }), 1000);
     })();
-    return () => { if (t) clearTimeout(t); Speech.stop(); };
+    // FIX 3: mark dead so any pending speakVerdict continuation bails out.
+    return () => { alive.current = false; if (t) clearTimeout(t); clearSpeakTimer(); Speech.stop(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load the real family roster + shared familyCode for the alert sheet.
+  // Load the real family roster + shared familyCode + this phone's owner name.
   useEffect(() => {
     (async () => {
       setMembers(await LocalDBService.getFamilyMembers());
       setFamilyCode(await LocalDBService.getFamilyCode());
+      // Unset profile name → '' → buildAlertMessage uses "Ghar wale ko yeh message
+      // mila hai" fallback. ProfileScreen's display default 'Ahmed Khan' is UI-only.
+      setVictimName(await LocalDBService.getProfileName());
     })();
   }, []);
 
@@ -221,8 +382,9 @@ export default function VerdictScreen({ route, navigation }) {
   const openChannel = async (m, channel) => {
     const num = toIntl(m.phone);
     if (!num) { setToast('Phone number nahi hai'); return; }
-    // Built per member so the recipient's name is inside the payload itself.
-    const body = buildAlertMessage(m.name, type, score, redFlags);
+    // Victim semantics: the alert names the person holding THIS phone and quotes
+    // the message, so every guardian gets the same facts regardless of who they are.
+    const body = buildAlertMessage({ name: victimName, score, text: messageText, lang: alertLang });
     const url = channel === 'sms'
       ? `sms:${num}?body=${encodeURIComponent(body)}`
       : `https://wa.me/${num}?text=${encodeURIComponent(body)}`;
@@ -246,6 +408,9 @@ export default function VerdictScreen({ route, navigation }) {
   const onPush = async (m) => {
     if (!m.token) return;
     setPushState(p => ({ ...p, [m.id]: 'sending' }));
+    // SMS/WhatsApp carries the full victim payload (name + message quote).
+    // Push body stays generic — the frozen relay destructures only these fields
+    // and ignores extras; shipping raw SMS text would leak OTP/CNIC for zero gain.
     const res = await sendFamilyAlert({
       familyCode, from: 'Hifazat App', verdict: verdict.toUpperCase(), risk: score, flags: redFlags,
     });
@@ -287,14 +452,20 @@ export default function VerdictScreen({ route, navigation }) {
   };
 
   // (b) NCCIA Shikayat — pre-filled complaint email to the cyber-crime agency.
+  //     helpdesk@nccia.gov.pk is NCCIA's verified public intake address
+  //     (nccia.gov.pk/faqs.php + /financial-frauds.php).
   const onNccia = async () => {
-    const url = 'mailto:complaint@nccia.gov.pk'
+    const url = 'mailto:helpdesk@nccia.gov.pk'
       + `?subject=${encodeURIComponent(nccia.subject)}`
       + `&body=${encodeURIComponent(nccia.body)}`;
     try {
       await Linking.openURL(url);
     } catch (e) {
-      setToast('Email app nahi khula — Report Share use karein');
+      Alert.alert('Email app nahi khula', 'NCCIA online portal par complaint darj karein.', [
+        { text: 'Share', onPress: onShareReport },
+        { text: 'Portal', onPress: () => Linking.openURL(NCCIA_PORTAL_URL).catch(() => setToast('Portal nahi khula')) },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
     }
   };
 
@@ -327,7 +498,7 @@ export default function VerdictScreen({ route, navigation }) {
               </Pressable>
               <Text style={styles.bandLabel}>{speaking ? 'AWAZ CHAL RAHI HAI' : 'SCAN COMPLETE'}</Text>
               <Pressable
-                onPress={speakVerdict}
+                onPress={onAwazPress}
                 style={[styles.iconBtn, speaking && styles.iconBtnLive]}
                 accessibilityLabel={speaking ? 'Awaz chal rahi hai — playing' : 'Verdict dohraein'}
               >
@@ -373,7 +544,7 @@ export default function VerdictScreen({ route, navigation }) {
 
         {/* Details */}
         <View style={{ padding: SPACE.lg, gap: SPACE.sm }}>
-          {isScam ? <MoneySaved amount={50000} /> : null}
+          {isScam ? <MoneySaved amount={saved.amount} estimated={saved.estimated} /> : null}
           {isScam || isSusp
             ? <ScamDetails redFlags={redFlags} explanationRoman={explanationRoman} explanationUrdu={explanationUrdu} />
             : <SafeDetails />}
@@ -578,7 +749,7 @@ function SafeDetails() {
   );
 }
 
-function MoneySaved({ amount }) {
+function MoneySaved({ amount, estimated }) {
   return (
     <LinearGradient colors={gradients.safeBg.colors} start={gradients.safeBg.start} end={gradients.safeBg.end}
       style={[styles.card, { borderColor: COLORS.accent + '40', padding: SPACE.md, flexDirection:'row', alignItems:'center', gap: SPACE.sm }]}>
@@ -586,12 +757,21 @@ function MoneySaved({ amount }) {
         <Ionicons name="cash" size={SIZE.lg} color={COLORS.white} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontFamily: FONTS.enBold, fontSize: SIZE.xs, color: COLORS.safeText, letterSpacing: 0.6 }}>
-          BACHAYA / SAVED
-        </Text>
+        {/* Honesty chip: the figure is the amount the message quoted, or — when it
+            quoted none — the per-type estimate. Same idiom as Analytics' chip. */}
+        <View style={styles.savedHead}>
+          <Text style={{ fontFamily: FONTS.enBold, fontSize: SIZE.xs, color: COLORS.safeText, letterSpacing: 0.6 }}>
+            BACHAYA / SAVED
+          </Text>
+          {estimated ? (
+            <View style={styles.estChip}>
+              <Text style={styles.estChipText}>ESTIMATED</Text>
+            </View>
+          ) : null}
+        </View>
         <Text style={{ fontFamily: FONTS.enBlack, fontSize: SIZE.xl, color: COLORS.accentDk,
           marginTop: SPACE.xs, fontVariant: ['tabular-nums'] }}>
-          Rs. {amount.toLocaleString('en-PK')} bachaya
+          Rs {amount.toLocaleString('en-PK')} bachaya
         </Text>
       </View>
     </LinearGradient>
@@ -657,6 +837,12 @@ const styles = StyleSheet.create({
     width: 36, height: 36, borderRadius: RADIUS.icon, flexShrink: 0,
     backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center',
   },
+  savedHead: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm },
+  estChip: {
+    paddingHorizontal: SPACE.sm, borderRadius: RADIUS.chip,
+    backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.accent + '55',
+  },
+  estChipText: { fontFamily: FONTS.enExtra, fontSize: SIZE.xs, color: COLORS.safeText, letterSpacing: 0.4 },
   actionSheet: {
     backgroundColor: COLORS.surface, borderTopLeftRadius: RADIUS.card, borderTopRightRadius: RADIUS.card,
     paddingHorizontal: SPACE.lg, paddingTop: SPACE.sm, gap: SPACE.sm,

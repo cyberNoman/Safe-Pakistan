@@ -9,15 +9,16 @@ import Animated, { FadeInUp, FadeOutDown } from 'react-native-reanimated';
 import { COLORS, FONTS, RADIUS, SIZE, SPACE, SHADOW, gradients } from '@/theme/tokens';
 import { typo, enText } from '@/theme/typography';
 import { LanguageChip } from '@/components/Cards';
+import { useLanguageContext } from '@/context/LanguageContext';
 
 const LANGS = [
-  { code:'en', flag:'🇬🇧', label:'English' },
-  { code:'ur', flag:'🇵🇰', label:'اردو' },
-  { code:'ru', flag:'🇵🇰', label:'Roman Urdu' },
+  { code:'en', label:'English' },
+  { code:'ur', label:'اردو' },
+  { code:'ru', label:'Roman Urdu' },
 ];
 
 export default function WelcomeScreen({ navigation }) {
-  const [lang, setLang] = useState('ur');
+  const { language, setLang } = useLanguageContext();
   const [note, setNote] = useState(null);
 
   // Honest fallback: sign-in does not exist in this release. Say so and point at
@@ -90,8 +91,8 @@ export default function WelcomeScreen({ navigation }) {
             contentContainerStyle={{ paddingHorizontal: SPACE.md, gap: SPACE.sm }}
           >
             {LANGS.map(l => (
-              <LanguageChip key={l.code} flag={l.flag} label={l.label}
-                active={lang === l.code} onPress={() => setLang(l.code)} />
+              <LanguageChip key={l.code} label={l.label}
+                active={language === l.code} onPress={() => setLang(l.code)} />
             ))}
           </ScrollView>
         </View>

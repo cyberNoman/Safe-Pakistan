@@ -151,7 +151,7 @@ export function LanguageChip({ flag, label, active, onPress }) {
       { backgroundColor: active ? COLORS.white : COLORS.white + '1A',
         borderColor: active ? 'transparent' : COLORS.white + '4D' }
     ]}>
-      <Text style={{ fontSize: SIZE.sm }}>{flag}</Text>
+      {flag ? <Text style={{ fontSize: SIZE.sm }}>{flag}</Text> : null}
       <Text style={{
         fontFamily: FONTS.enBold, fontSize: SIZE.sm,
         color: active ? COLORS.primary : COLORS.white,

@@ -7,7 +7,7 @@ import { COLORS, FONTS, SIZE, RADIUS, SHADOW, SPACE, gradients } from '@/theme/t
 import { typo } from '@/theme/typography';
 import { SectionHeader, EmptyState } from '@/components/Cards';
 import { useAppContext } from '@/context/AppContext';
-import { savedEstimateFor } from '@/services/LocalDBService';
+import { savedAmountFor } from '@/services/LocalDBService';
 
 // Sun..Sat Roman-Urdu abbreviations — match the artboard's day labels.
 const DAY_ABBR = ['Itw', 'Pir', 'Mng', 'Bdh', 'Jma', 'Jum', 'Hft'];
@@ -30,16 +30,19 @@ function last7Days(scans) {
   return buckets;
 }
 
-// Blocked (scam) scans grouped by type → count + estimated PKR saved.
+// Blocked (scam) scans grouped by type → count + PKR saved. Each row sums the
+// rupee amount the message itself quoted (captured at scan time), falling back
+// to the per-type estimate for records with none — so the rows still add up to
+// the hero total instead of contradicting it.
 function scamBreakdown(scans) {
-  const counts = {};
+  const groups = {};
   scans.filter(s => s.verdict === 'scam').forEach(s => {
-    const t = s.scam_type || 'Other Scam';
-    counts[t] = (counts[t] || 0) + 1;
+    const label = s.scam_type || 'Other Scam';
+    if (!groups[label]) groups[label] = { label, count: 0, amount: 0 };
+    groups[label].count += 1;
+    groups[label].amount += savedAmountFor(s);
   });
-  return Object.entries(counts)
-    .map(([label, count]) => ({ label, count, amount: count * savedEstimateFor(label) }))
-    .sort((a, b) => b.count - a.count);
+  return Object.values(groups).sort((a, b) => b.count - a.count);
 }
 
 export default function AnalyticsScreen({ navigation }) {
@@ -82,7 +85,7 @@ export default function AnalyticsScreen({ navigation }) {
           />
         ) : (
           <>
-            {/* Hero — real money saved: blocked scans × per-type estimate */}
+            {/* Hero — real money saved: SUM of the amounts the blocked messages quoted */}
             <LinearGradient colors={gradients.hero.colors} start={gradients.hero.start} end={gradients.hero.end}
               style={[styles.hero, SHADOW.elevated]}
             >
@@ -90,7 +93,7 @@ export default function AnalyticsScreen({ navigation }) {
               <Text style={[typo.scoreEn, { color: COLORS.white, marginTop: SPACE.sm }]}>Rs {savedAmount.toLocaleString()}</Text>
               <View style={styles.estimateChip}>
                 <Ionicons name="information-circle" size={SIZE.sm} color={COLORS.white} />
-                <Text style={styles.estimateText}>estimated per scam type</Text>
+                <Text style={styles.estimateText}>real amounts · else per-type estimate</Text>
               </View>
               <Text style={[typo.bodyEnInv, { marginTop: SPACE.sm }]}>
                 {blockedCount} scam{blockedCount === 1 ? '' : 's'} block kar ke aapne yeh nuqsaan bachaya.

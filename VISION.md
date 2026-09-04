@@ -14,6 +14,10 @@ Supabase, no Firebase).
 ## V2 sprint plan (ordered)
 
 ### Sprint 1 — Auth + the production family bus
+- **Trilingual UI:** the app is intentionally trilingual (English · Roman Urdu ·
+  اردو) so every reader in the household is served. Today the Welcome language
+  chips drive the Guardian chat + TTS voice only; the full per-language UI switch
+  — every screen rendering in the selected language — lands here in Sprint 1.
 - **Auth:** Alibaba Cloud **SMS OTP** sign-in (phone-first, no password). Real
   identity replaces the demo profile in `ProfileScreen`; the `Log out` stub becomes
   a real session sign-out.

@@ -11,7 +11,7 @@
  * Scrolling preferences screen; the ScrollView fits short devices.
  */
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, Switch, Alert, Linking, Share, StyleSheet, StatusBar } from 'react-native';
+import { View, Text, TextInput, ScrollView, Pressable, Switch, Alert, Linking, Share, StyleSheet, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZE, RADIUS, SHADOW, SPACE, urduSize } from '@/theme/tokens';
@@ -56,12 +56,16 @@ export default function ProfileScreen({ navigation }) {
   const [role, setRole] = useState('Self');
   const [notif, setNotif] = useState({ scam: true, suspicious: true, safe: false });
   const [autoDelete, setAutoDelete] = useState(0);
+  const [name, setName] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
 
   useEffect(() => {
     (async () => {
       setVoice(await LocalDBService.getVoicePref());
       setNotif(await LocalDBService.getNotifPrefs());
       setAutoDelete(await LocalDBService.getAutoDelete());
+      setName(await LocalDBService.getProfileName());
     })();
   }, []);
 
@@ -79,6 +83,22 @@ export default function ProfileScreen({ navigation }) {
   const chooseAutoDelete = async (days) => {
     setAutoDelete(days);
     await LocalDBService.setAutoDelete(days);
+  };
+
+  // Victim name shown in family alerts. Empty -> demo default for display only,
+  // never persisted; alerts then fall back to "Ghar wale ko yeh message mila hai".
+  const displayName = name.trim() || 'Ahmed Khan';
+
+  const startEditName = () => {
+    setDraft(name);
+    setEditing(true);
+  };
+
+  const saveName = async () => {
+    const trimmed = draft.trim();
+    setName(trimmed);
+    setEditing(false);
+    await LocalDBService.setProfileName(trimmed);
   };
 
   const openLink = (url) => Linking.openURL(url).catch(() => {});
@@ -129,9 +149,26 @@ export default function ProfileScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Identity (demo — placeholder auth) */}
         <View style={[styles.idCard, SHADOW.card]}>
-          <Avatar name="Ahmed Khan" color={COLORS.primary} size={56} />
+          <Avatar name={displayName} color={COLORS.primary} size={56} />
           <View style={{ flex: 1, marginLeft: SPACE.md }}>
-            <Text style={styles.name}>Ahmed Khan</Text>
+            {editing ? (
+              <TextInput
+                style={styles.nameInput}
+                value={draft}
+                onChangeText={setDraft}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={saveName}
+                onBlur={saveName}
+                placeholder="Naam likhein"
+                placeholderTextColor={COLORS.textMuted}
+              />
+            ) : (
+              <Pressable style={styles.nameRow} onPress={startEditName}>
+                <Text style={styles.name} numberOfLines={1}>{displayName}</Text>
+                <Ionicons name="pencil-outline" size={SIZE.lg} color={COLORS.primary} />
+              </Pressable>
+            )}
             <Text style={styles.phone}>+92 300 ••• 4412</Text>
             <View style={styles.roleChip}>
               <Text style={styles.roleChipText}>{role.toUpperCase()}</Text>
@@ -144,7 +181,12 @@ export default function ProfileScreen({ navigation }) {
         <Text style={[typo.labelUr, { marginBottom: SPACE.sm }]}>ترجیحات</Text>
 
         <View style={[styles.card, SHADOW.soft]}>
-          <Text style={styles.rowLabel}>Language</Text>
+          <Text style={styles.rowLabel}>{'Chat & awaaz ki zaban / Guardian language'}</Text>
+          <Text style={styles.note}>
+            {'App UI jaan-boojh kar TEEN-zabani hai — English · Roman Urdu · '}
+            <Text style={styles.noteUr}>{'اردو'}</Text>
+            {' — ghar ke har parhne wale ke liye. Full per-language UI switch V2 sprint one mein.'}
+          </Text>
           <View style={styles.chipRow}>
             {LANGS.map(l => {
               const on = language === l.code;
@@ -296,8 +338,22 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface, borderRadius: RADIUS.card, padding: SPACE.md,
     borderWidth: 1, borderColor: COLORS.border,
   },
-  name: { fontFamily: FONTS.enExtra, fontSize: SIZE.lg, color: COLORS.text },
+  name: { fontFamily: FONTS.enExtra, fontSize: SIZE.lg, color: COLORS.text, flexShrink: 1 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm, minHeight: 44 },
+  nameInput: {
+    fontFamily: FONTS.enExtra, fontSize: SIZE.lg, color: COLORS.text,
+    minHeight: 44, borderBottomWidth: 1, borderBottomColor: COLORS.primary,
+    paddingVertical: SPACE.xs,
+  },
   phone: { fontFamily: FONTS.enMedium, fontSize: SIZE.sm, color: COLORS.textMuted, marginTop: SPACE.xs },
+  note: {
+    fontFamily: FONTS.enMedium, fontSize: SIZE.xs, color: COLORS.textMuted,
+    lineHeight: SIZE.xs * 1.5, marginTop: SPACE.xs,
+  },
+  noteUr: {
+    fontFamily: FONTS.urdu, fontSize: urduSize(SIZE.xs), color: COLORS.textMuted,
+    writingDirection: 'rtl', lineHeight: urduSize(SIZE.xs) * 1.8,
+  },
   roleChip: {
     alignSelf: 'flex-start', marginTop: SPACE.sm,
     paddingHorizontal: SPACE.sm, paddingVertical: SPACE.xs,

@@ -26,6 +26,7 @@ import Animated, {
 
 import { COLORS, FONTS, RADIUS, SIZE, SPACE, SHADOW, gradients } from '@/theme/tokens';
 import { typo, enText } from '@/theme/typography';
+import { useLanguageContext } from '@/context/LanguageContext';
 
 const LANGS = [
   { code:'en', label:'EN' },
@@ -36,13 +37,13 @@ const LANGS = [
 // Spoken-style prompts. Tapping one hands the question to the Guardian chat,
 // which is where a real answer exists — this screen has no STT engine.
 const HINTS = [
+  '"BISP 8171 ka asli message kaisa hota hai?"',
   '"Yeh SMS scam hai ya nahi?"',
   '"JazzCash ka helpline number kya hai?"',
-  '"BISP 8171 ka asli message kaisa hota hai?"',
 ];
 
 export default function VoiceScreen({ navigation }) {
-  const [lang, setLang] = useState('ur');
+  const { language, setLang } = useLanguageContext();
   // Starts 'idle', NOT 'listening'. The previous build booted into a permanent
   // "● LISTENING / بولیں، میں سن رہا ہوں" state with a fake audio waveform while
   // the mic tap admitted voice input was unavailable — the screen contradicted
@@ -102,11 +103,11 @@ export default function VoiceScreen({ navigation }) {
         {LANGS.map(l => (
           <Pressable key={l.code} onPress={() => setLang(l.code)} style={[
             styles.langChip,
-            lang === l.code
+            language === l.code
               ? { backgroundColor: COLORS.white }
               : { backgroundColor: COLORS.white08, borderColor: COLORS.white15, borderWidth: 1 }
           ]}>
-            <Text style={enText(SIZE.xs, FONTS.enBold, lang === l.code ? COLORS.primary : COLORS.white)}>
+            <Text style={enText(SIZE.xs, FONTS.enBold, language === l.code ? COLORS.primary : COLORS.white)}>
               {l.label}
             </Text>
           </Pressable>

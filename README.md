@@ -45,7 +45,7 @@ and اردو (Nastaliq), plus **one tap to warn your family**.
 | **Resilience** | 4/4 failure-path harness PASS — every outage still returns a verdict |
 | **Family-aware** | Real-time alert to guardians, naming the recipient: SMS/WhatsApp deep link **or** Expo push |
 | **Languages** | English · Roman Urdu · اردو (Nastaliq) — chat accepts Urdu script; voice read-out in `ur-PK` with an `en-US` fallback |
-| **Report path** | One tap to a pre-filled **NCCIA** complaint (`complaint@nccia.gov.pk`) or the native share sheet |
+| **Report path** | One tap to a pre-filled **NCCIA** complaint (`helpdesk@nccia.gov.pk`) or the native share sheet |
 | **Our model** | [hifazat-edge](https://huggingface.co/Noman33/hifazat-edge) — Qwen2.5-1.5B + LoRA, on Hugging Face |
 
 ---
@@ -70,6 +70,22 @@ Existing tools fail her three times: **cloud-only** (dies offline),
 failure). And even a correct verdict arrives too late if she is the only one
 who sees it — the person who can stop her is usually her son, in another city.
 So we inverted the architecture **and** made the verdict shareable in one tap.
+
+## Prior art in Pakistan
+
+Plenty of tools touch this problem; none of them cover the whole path. Each
+stops short exactly where Hifazat begins:
+
+| Solution | What it does | Gap Hifazat fills |
+|---|---|---|
+| **Truecaller / Whoscall** | Caller-ID & spam-blocking apps | Need internet + account signup, weak on Urdu SMS, no family protection |
+| **PTA DNC 9090** | Do-Not-Complain registry | Reactive only — cannot read or analyze an SMS |
+| **NCCIA 1799 / complaint portal** | Cybercrime reporting line & portal | Post-loss reporting — acts after the money is gone |
+| **Official shortcodes 4444 / 3737 / 8171** | Bank & service verification channels | Require a literate, already-suspicious user |
+| **Google / Samsung built-in spam filtering** | On-device message filtering | English-first, no Pakistan scam taxonomy (BISP / Eidi / JazzCash-style bait) |
+
+**Hifazat prevents and protects; NCCIA prosecutes.** It runs offline-first,
+reads Urdu, Roman Urdu and English, and alerts the family before the money moves.
 
 ## 3 · How it works — a cascade that cannot break
 
@@ -130,13 +146,13 @@ network call, and nothing claims a delivery it did not make.
 
 | New | What it actually does |
 |---|---|
-| **Awaz — verdict read aloud** | `expo-speech` speaks the verdict in Urdu (`ur-PK`). If the device has no Urdu voice it **immediately falls back to Roman Urdu in `en-US`**, so the button makes a sound on stage either way. While speaking it pulses (Reanimated `withRepeat`), swaps to `volume-high`, gains an accent ring, and the band label flips to **"AWAZ CHAL RAHI HAI"**. A generation guard keeps a double-tap from leaving it stuck on "playing". |
+| **Awaz — verdict read aloud** | `expo-speech` speaks the verdict in Urdu (`ur-PK`). If the device has no Urdu voice it **immediately falls back to Roman Urdu in `en-US`**; if the phone has **no TTS engine at all** it toasts *"Awaz engine phone par nahi — Settings → Text-to-speech"* instead of faking a speaking state, and a 10 s watchdog reverts a stuck button. While speaking it pulses (Reanimated `withRepeat`), swaps to `volume-high`, gains an accent ring, and the band label flips to **"AWAZ CHAL RAHI HAI"**. A generation guard keeps a double-tap from leaving it stuck on "playing". |
 | **Sender Block Karein** | Copies the sender with `expo-clipboard`, toasts *"Number copy ho gaya"*, opens the native SMS app at that number, and says plainly: *"Apne phone ki SMS settings mein is number ko block karein."* Android exposes no third-party block API — the app states that instead of pretending. When no sender is present it says so and points at the NCCIA complaint. |
-| **NCCIA Shikayat** | Opens a pre-filled `mailto:` to **complaint@nccia.gov.pk** carrying a legal-style complaint: sender, the verbatim message, verdict + risk score, red flags, layer attribution (L0 + L1 hifazat-edge + L2 Qwen-Max), victim context, and the action requested. |
+| **NCCIA Shikayat** | Opens a pre-filled `mailto:` to **helpdesk@nccia.gov.pk** carrying a legal-style complaint: sender, the verbatim message, verdict + risk score, red flags, layer attribution (L0 + L1 hifazat-edge + L2 Qwen-Max), victim context, the action requested, and the verified NCCIA channels — online portal `https://complaint.nccia.gov.pk` + helpline **1799**. |
 | **Report Share Karein** | The same report as clean plain text through the native `Share.share()` sheet — WhatsApp, SMS or any installed target. |
 | **Share on Home and Scan** | Home shares a plain-text summary of the **real** scan store; Scan shares the message you pasted as a warning. Zero scans reads "No scans yet" rather than inventing figures. |
 | **اردو chat coverage** | The Guardian KB was Latin-keyed only, so every Urdu-script question fell through to "I don't know" — in a 3-language app aimed at Urdu readers. A 22-row synonym table now maps Urdu-script terms onto existing KB keys, plus Eastern-Arabic digit normalisation for the shortcode check. **Answers are unchanged; only the question side widened.** Verified: 14/14 Urdu queries hit the correct entry and off-topic Urdu still falls back honestly. |
-| **Named family alerts** | The SMS/WhatsApp payload leads with the recipient — *"Alert for Ammi: HIFAZAT ALERT …"* — so a forwarded warning never loses its context. |
+| **Named family alerts** | The SMS/WhatsApp payload is victim-centric and names the recipient — *"HIFAZAT ALERT: Ammi ko yeh message mila hai — SCAM (Risk 96/100) … Ammi ko OTP/paisa bhejne se rokein. Unhein foran call karein."* — so a forwarded warning tells the family who to protect and what to do. |
 | **Real-time Family Alert** | Per member, two paths: **PRIMARY** "Send via SMS / WhatsApp" — a zero-backend deep link (`sms:` / `wa.me`) that opens the native app **pre-filled**, with `03XX…` normalized to `923XX…`; **SECONDARY** "Push Alert" — enabled only when that member registered a real Expo push token, relayed by the backend to `exp.host`. On `sent: 0` it toasts *"Push fail hua — SMS use karein"* and keeps SMS highlighted. |
 | **Push-ready device enrolment** | On the guardian device: *"Is device ko push-ready banayein"* → notification permission → `getExpoPushTokenAsync()` → `POST /family/register`. If the token call throws (Expo Go, no dev build), the app says so plainly — *"Push is build mein available nahi — SMS alert use karein"* — and marks the member **SMS only**. Push is never faked. |
 | **Receiving side** | Foreground → in-app banner with verdict + risk, auto-dismissing. Background → real system notification via Expo/FCM. |
@@ -238,9 +254,14 @@ plainly, in the README, the model card and the app itself:
 - **Android exposes no third-party SMS-block API.** "Sender Block Karein" copies
   the number and opens the SMS app; the block itself is a manual step in the
   user's own settings, and the screen states that rather than implying success.
-- **Two Home/Verdict numbers are fixed design values, not measurements:** the
-  hero "PROTECTED 98" ring and the "Rs 50,000 bachaya" card. The scan counters,
-  verdicts, scores, red flags, layer attribution and analytics are all real.
+- **The hero "PROTECTED 98" ring is a fixed design value, not a measurement.**
+  The saved-amount figure is now computed, not canned: VerdictScreen reads the
+  amount out of the scanned message (*"Rs 5,000"*, *"25,000"*, *"10k"*, Urdu
+  digits) and shows *"Rs <amt> bachaya"*; when no amount is present it falls back
+  to a per-scam-type estimate badged **"ESTIMATED"**. The Analytics **TOTAL
+  BACHAYA** is the sum of the per-scan amounts actually stored (real where found,
+  else the per-type estimate for legacy rows). The scan counters, verdicts,
+  scores, red flags, layer attribution and analytics are all real.
 - A false SAFE is more harmful than a false SCAM, so the cascade prefers
   escalation over guessing. Verdicts are not legal advice; reporting goes to
   **NCCIA Shikayat** (helpline **1799**).
@@ -341,7 +362,7 @@ Both phones on the **same hotspot**, laptop backend running on `:3000`.
 | 4 | — | Scan → the **"25,000 OTP"** preset → verdict **SCAM, 96 red** |
 | 5 | — | **Awaz** → the verdict is read aloud (Urdu, or Roman Urdu on `en-US` if the device has no Urdu voice). The button pulses and the band flips to **AWAZ CHAL RAHI HAI** |
 | 6 | — | **NCCIA Shikayat** → the mail app opens with a complete legal complaint · **Report Share Karein** → native share sheet · **Sender Block** → number copied + SMS app opened |
-| 7 | — | **Family Ko Batain** → pick the member → **PRIMARY "Send via SMS / WhatsApp"** → native SMS opens **pre-filled and addressed**: *"Alert for Ammi: HIFAZAT ALERT …"* |
+| 7 | — | **Family Ko Batain** → pick the member → **PRIMARY "Send via SMS / WhatsApp"** → native SMS opens **pre-filled and addressed**: *"HIFAZAT ALERT: Ammi ko yeh message mila hai — SCAM (Risk 96/100) … Ammi ko OTP/paisa bhejne se rokein."* |
 | 8 | — | **SECONDARY "Push Alert"** (live only with a real token) → **"Push sent · real"** |
 | 9 | Foreground → **in-app banner** with verdict + risk. Backgrounded → **system notification** | On `sent: 0` → toast *"Push fail hua — SMS use karein"*, SMS stays highlighted |
 

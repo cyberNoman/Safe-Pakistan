@@ -6,13 +6,21 @@
  * An empty store stays empty → zero scans → zero stats → clean empty state.
  *
  * Persisted scan record shape:
- *   { ts, verdict, score, scam_type, layer_used, msg }
- *     ts         epoch ms
- *     verdict    'scam' | 'suspicious' | 'safe'
- *     score      0–100 risk score
- *     scam_type  label from the engine (e.g. 'BISP 8171 Fraud')
- *     layer_used cascade layer that answered (e.g. 'FT_MODEL', 'offline-rules')
- *     msg        short preview of the scanned text (local only, never shared)
+ *   { ts, verdict, score, scam_type, layer_used, msg, amount, amount_found }
+ *     ts           epoch ms
+ *     verdict      'scam' | 'suspicious' | 'safe'
+ *     score        0–100 risk score
+ *     scam_type    label from the engine (e.g. 'BISP 8171 Fraud')
+ *     layer_used   cascade layer that answered (e.g. 'FT_MODEL', 'offline-rules')
+ *     msg          short preview of the scanned text (local only, never shared)
+ *     amount       PKR quoted in the scanned message, extracted at scan time
+ *                  over the FULL text (0 when no amount was found). Absent on
+ *                  legacy records written before this field existed.
+ *     amount_found true only when `amount` came from the message itself;
+ *                  stored for diagnostics. The user-facing "ESTIMATED" badge
+ *                  is computed on the Verdict card from live scan text; the
+ *                  Report total falls back per-type with the Analytics chip
+ *                  disclosing it.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -26,12 +34,14 @@ const KEY_CHAT_FEEDBACK = '@safe_pakistan_chat_feedback';
 const KEY_CHAT_REPORT = '@safe_pakistan_chat_report';
 const KEY_FAMILY_CODE = '@safe_pakistan_family_code';
 const KEY_DEVICE_PUSH = '@safe_pakistan_device_push';
+const KEY_PROFILE_NAME = '@safe_pakistan_profile_name';
+const KEY_VOLUME_HINT = '@safe_pakistan_volume_hint';
 const HISTORY_CAP = 50;
 const LOG_CAP = 200;
 const DAY_MS = 86400000;
 
 // Per-scam-type savings estimate (PKR). Surfaced in the UI behind the visible
-// label "estimated per scam type" — these are estimates, not measured losses.
+// label "real amounts · else per-type estimate" (AnalyticsScreen chip).
 const SAVED_ESTIMATE_BY_TYPE = {
   'BISP 8171 Fraud':      25000,
   'JazzCash Phishing':    15000,
@@ -69,7 +79,10 @@ export function relTime(ts) {
 
 /**
  * Pure aggregation over the real history. Empty in → zeros out.
- * Money-saved = blocked (scam) scans × per-type estimate.
+ * Money-saved = SUM over blocked (scam) scans of the rupee amount the scanned
+ * message actually quoted (`amount`, captured at scan time). Records with no
+ * stored amount — legacy rows, or messages that quoted no figure — fall back to
+ * the per-type estimate so old history stays counted and honest.
  */
 export function computeStats(history) {
   const rows = Array.isArray(history) ? history : [];
@@ -79,8 +92,14 @@ export function computeStats(history) {
     blockedCount: blocked.length,
     safeCount: rows.filter(s => s.verdict === 'safe').length,
     suspiciousCount: rows.filter(s => s.verdict === 'suspicious').length,
-    savedAmount: blocked.reduce((sum, s) => sum + savedEstimateFor(s.scam_type), 0),
+    savedAmount: blocked.reduce((sum, s) => sum + savedAmountFor(s), 0),
   };
+}
+
+/** PKR a single blocked scan saved: real quoted amount, else per-type estimate. */
+export function savedAmountFor(scan) {
+  const a = scan && scan.amount;
+  return (typeof a === 'number' && a > 0) ? a : savedEstimateFor(scan && scan.scam_type);
 }
 
 // ── AsyncStorage JSON helpers (best-effort; never throw to callers) ──
@@ -147,6 +166,28 @@ export const LocalDBService = {
     } catch (e) {
       // ignore — preference is best-effort
     }
+  },
+
+  // ── One-time "raise the MEDIA volume" hint on the Verdict Awaz button ──
+  // Persisted so it fires on the very first tap only, never again.
+  async getVolumeHintShown() {
+    return (await readJSON(KEY_VOLUME_HINT, false)) === true;
+  },
+  async setVolumeHintShown(shown) {
+    await writeJSON(KEY_VOLUME_HINT, !!shown);
+  },
+
+  // ── Owner of this phone = the VICTIM named in family alerts ──
+  // Contract for the Profile screen: LocalDBService.getProfileName() →
+  // string ('' when unset) and LocalDBService.setProfileName(string) → string.
+  async getProfileName() {
+    const n = await readJSON(KEY_PROFILE_NAME, '');
+    return typeof n === 'string' ? n.trim() : '';
+  },
+  async setProfileName(name) {
+    const n = String(name || '').trim();
+    await writeJSON(KEY_PROFILE_NAME, n);
+    return n;
   },
 
   // ── Notification preferences (which verdicts alert the user) ──

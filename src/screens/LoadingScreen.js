@@ -13,6 +13,10 @@ import { COLORS, FONTS, SIZE, RADIUS, SPACE, gradients } from '@/theme/tokens';
 import { typo } from '@/theme/typography';
 import { LoadingShield } from '@/components/Overlays';
 import { analyzeText } from '@/services/api';
+// Pure rupee-figure extractor (lives beside the verdict's other text helpers).
+// Imported here so the amount is captured from the FULL text at scan time — the
+// stored `msg` is truncated to 90 chars and must never be re-parsed later.
+import { extractAmount } from '@/screens/VerdictScreen';
 import { useAppContext } from '@/context/AppContext';
 
 const STEPS = [
@@ -37,6 +41,7 @@ export default function LoadingScreen({ route, navigation }) {
       // Persist every scan to the real store — Home / Report / Library read ONLY this.
       // Never blocks the verdict: a persist failure still routes to the result.
       try {
+        const amt = extractAmount(text);
         await recordScan({
           ts: Date.now(),
           verdict: result?.verdict,
@@ -44,6 +49,10 @@ export default function LoadingScreen({ route, navigation }) {
           scam_type: result?.type,
           layer_used: result?.model_used,
           msg: String(text || '').slice(0, 90),
+          // amount_found=false ⇒ Report labels the figure "estimated" and
+          // computeStats falls back to the per-scam-type estimate.
+          amount: amt.found ? amt.amount : 0,
+          amount_found: amt.found,
         });
       } catch (e) {
         // ignore — analytics persistence must never block the user

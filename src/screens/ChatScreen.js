@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, Pressable, TextInput, StyleSheet, StatusBar, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,6 +8,7 @@ import { COLORS, FONTS, SIZE, RADIUS, SPACE, SHADOW, gradients } from '@/theme/t
 import { typo } from '@/theme/typography';
 import { DemoBadge } from '@/components/Indicators';
 import { LocalDBService } from '@/services/LocalDBService';
+import { useLanguageContext } from '@/context/LanguageContext';
 
 const DEFAULT_SUGGESTIONS = [
   'Kya JazzCash SMS safe hai?',
@@ -249,6 +250,8 @@ function guardianReply(text) {
 }
 
 export default function ChatScreen({ route, navigation }) {
+  const { language } = useLanguageContext();
+  const scrollRef = useRef(null);
   const [text, setText] = useState('');
   const [suggestions, setSuggestions] = useState(DEFAULT_SUGGESTIONS);
   const [note, setNote] = useState(null);
@@ -258,7 +261,7 @@ export default function ChatScreen({ route, navigation }) {
   const [messages, setMessages] = useState([
     { id: '1', from: 'bot',
       enText: 'Assalam o Alaikum! Main aapka Guardian hoon. Koi number, SMS ya scam type ke baare mein poochein.',
-      urText: 'السلام علیکم! میں آپ کا گارڈین ہوں۔' },
+      urText: 'السلام علیکم! میں آپ کا گارڈین ہوں۔ کوئی نمبر، ایس ایم ایس یا سکیم کے بارے میں پوچھیں۔' },
   ]);
 
   const submit = (raw) => {
@@ -293,6 +296,15 @@ export default function ChatScreen({ route, navigation }) {
     const t = setTimeout(() => setNote(null), 2600);
     return () => clearTimeout(t);
   }, [note]);
+
+  // Non-inverted list: newest message sits at the BOTTOM, so scroll there on
+  // mount (layout-ready timeout) and on every content growth — user send and
+  // bot reply both change content size, firing onContentSizeChange.
+  const scrollToNewest = () => scrollRef.current?.scrollToEnd({ animated: true });
+  useEffect(() => {
+    const t = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 120);
+    return () => clearTimeout(t);
+  }, []);
 
   // Feedback lives under the newest bot answer only ("end of conversation").
   const lastId = messages[messages.length - 1]?.id;
@@ -331,19 +343,22 @@ export default function ChatScreen({ route, navigation }) {
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        {/* Message list — inverted so the newest message is always anchored at the bottom */}
-        <ScrollView inverted style={styles.msgList} contentContainerStyle={styles.msgListContent}
-          keyboardShouldPersistTaps="handled">
-          {[...messages].reverse().map(m => m.from === 'bot'
-            ? <BotMsg key={m.id} m={m}
+        {/* Message list — natural (non-inverted) order: date pill renders FIRST
+            so it stays visually on top, then oldest→newest top-to-bottom.
+            onContentSizeChange scrolls to the newest message whenever the list
+            grows (screen open / user send / bot reply). */}
+        <ScrollView ref={scrollRef} style={styles.msgList} contentContainerStyle={styles.msgListContent}
+          keyboardShouldPersistTaps="handled" onContentSizeChange={scrollToNewest}>
+          <View style={styles.datePill}>
+            <Text style={typo.labelEn}>AAJ · TODAY</Text>
+          </View>
+          {messages.map(m => m.from === 'bot'
+            ? <BotMsg key={m.id} m={m} language={language}
                 showFeedback={m.id === lastId && !!m.q}
                 feedback={feedback[m.id]}
                 onFeedback={(v) => markFeedback(m, v)}
                 onReport={() => reportAnswer(m)} />
             : <UserMsg key={m.id} text={m.text} />)}
-          <View style={styles.datePill}>
-            <Text style={typo.labelEn}>AAJ · TODAY</Text>
-          </View>
         </ScrollView>
 
         {/* Suggestions — horizontal rail, swipeable; tap to ask */}
@@ -394,7 +409,10 @@ export default function ChatScreen({ route, navigation }) {
   );
 }
 
-function BotMsg({ m, showFeedback, feedback, onFeedback, onReport }) {
+function BotMsg({ m, language, showFeedback, feedback, onFeedback, onReport }) {
+  // Language chips drive the chat: 'ur' → Urdu-script node only; 'en' and 'ru'
+  // (Roman Urdu) → the KB's Roman/Latin `en` field only. Exactly one text node.
+  const showUr = language === 'ur';
   return (
     <View style={styles.botWrap}>
       <View style={styles.botRow}>
@@ -404,8 +422,8 @@ function BotMsg({ m, showFeedback, feedback, onFeedback, onReport }) {
           <Ionicons name="shield-checkmark" size={SIZE.sm} color={COLORS.white} />
         </LinearGradient>
         <View style={styles.botBubble}>
-          {m.enText && <Text style={styles.botText}>{m.enText}</Text>}
-          {m.urText && <Text style={[typo.bodyUr, { marginTop: m.enText ? SPACE.xs : 0 }]}>{m.urText}</Text>}
+          {!showUr && m.enText && <Text style={styles.botText}>{m.enText}</Text>}
+          {showUr && m.urText && <Text style={typo.bodyUr}>{m.urText}</Text>}
           {m.warn && (
             <View style={styles.warn}>
               <View style={styles.warnLabelRow}>

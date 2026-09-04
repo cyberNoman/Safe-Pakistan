@@ -100,10 +100,10 @@ export default function HomeScreen({ navigation }) {
           <View style={{ flex: 1 }}>
             <StatusPill kind="safe">PROTECTED · MEHFOOZ</StatusPill>
             <Text style={styles.heroTitle}>
-              {blockedToday > 0 ? `Aaj ${blockedToday} threats block hue` : 'Aapka ghar mehfooz hai'}
+              {blockedToday === 1 ? 'Aaj 1 threat block hua' : blockedToday > 0 ? `Aaj ${blockedToday} threats block hue` : 'Aapka ghar mehfooz hai'}
             </Text>
             <Text style={[typo.bodyUrInv, { marginTop: SPACE.xs }]}>
-              {blockedToday > 0 ? `آج ${blockedToday} خطرات روکے گئے` : 'آپ کا گھر محفوظ ہے'}
+              {blockedToday === 1 ? 'آج 1 خطرہ روکا گیا' : blockedToday > 0 ? `آج ${blockedToday} خطرات روکے گئے` : 'آپ کا گھر محفوظ ہے'}
             </Text>
             <View style={{ flexDirection: 'row', gap: SPACE.sm, marginTop: SPACE.md, flexWrap: 'wrap' }}>
               <AgentStatusDot label="SMS" status="on" />

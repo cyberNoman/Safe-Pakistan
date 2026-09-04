@@ -2,7 +2,12 @@
  * LanguageContext — 3 languages only: English · اردو · Roman Urdu.
  * Usage: const { language, setLanguage, t, isRTL } = useLanguageContext();
  */
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Guardian language (chat + TTS) persisted across restarts — same AsyncStorage
+// idiom LocalDBService uses. Own key so this file owns its own persistence.
+const KEY_LANG = '@hifazat/lang';
 
 export const TRANSLATIONS = {
   en: {
@@ -46,9 +51,25 @@ const LanguageContext = createContext(null);
 
 export function LanguageProvider({ children }) {
   const [language, setLanguage] = useState('ur'); // 'en' | 'ur' | 'ru'
+  const userChose = useRef(false);
+
+  // Restore the saved guardian language on mount.
+  useEffect(() => {
+    let mounted = true;
+    AsyncStorage.getItem(KEY_LANG)
+      .then(saved => {
+        if (mounted && !userChose.current && saved && TRANSLATIONS[saved]) setLanguage(saved);
+      })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, []);
 
   const setLang = useCallback(code => {
-    if (TRANSLATIONS[code]) setLanguage(code);
+    if (TRANSLATIONS[code]) {
+      userChose.current = true;
+      setLanguage(code);
+      AsyncStorage.setItem(KEY_LANG, code).catch(() => {});
+    }
   }, []);
 
   const t = useCallback(
