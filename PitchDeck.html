@@ -79,7 +79,7 @@
   </div>
 </section>
 
-<!-- 2 · PROBLEM — speaker note: read the SMS aloud, then pause. -->
+<!-- 2 · PROBLEM -->
 <section class="slide">
   <div class="kicker">The Problem</div>
   <h2>Ammi just received this SMS.</h2>
@@ -112,7 +112,7 @@
       <p class="li">• <b>The house warns itself</b> — one tap alerts family by SMS, WhatsApp or push</p>
     </div>
     <div style="display:flex;gap:16px;flex:none">
-      <div class="mini"><h4>SCAN</h4><div style="height:8px;border-radius:4px;background:var(--srf2);margin:4px 8px"></div><div style="height:8px;border-radius:4px;background:var(--srf2);margin:4px 8px"></div><div style="height:8px;border-radius:4px;background:var(--srf2);margin:4px 8px"></div><span class="pill" style="border:1px solid var(--blue);color:var(--blueLt)">paste / speak</span></div>
+      <div class="mini"><h4>SCAN</h4><div style="height:8px;border-radius:4px;background:var(--srf2);margin:4px 8px"></div><div style="height:8px;border-radius:4px;background:var(--srf2);margin:4px 8px"></div><div style="height:8px;border-radius:4px;background:var(--srf2);margin:4px 8px"></div><span class="pill" style="border:1px solid var(--blue);color:var(--blueLt)">paste / screenshot</span></div>
       <div class="mini"><h4>VERDICT</h4><div style="font-size:30px;font-weight:900;color:var(--red)">96</div><span class="pill" style="background:var(--red);color:#fff">SCAM</span><div style="height:6px;border-radius:4px;background:var(--srf2);margin:8px 10px"></div><div style="height:6px;border-radius:4px;background:var(--srf2);margin:4px 10px"></div></div>
       <div class="mini"><h4>VOICE</h4><div style="width:52px;height:52px;border-radius:50%;border:3px solid var(--green);margin:10px auto"></div><span class="pill" style="border:1px solid var(--green);color:var(--green)">ur-PK read-out</span></div>
     </div>
@@ -132,12 +132,13 @@
   <div class="tag" style="margin-top:30px;font-size:30px">So we inverted the architecture.</div>
 </section>
 
-<!-- 5 · CASCADE — speaker note: "The demo cannot break — it just changes which brain answers." -->
+<!-- 5 · CASCADE -->
 <section class="slide">
   <div class="kicker">The Innovation · Star Slide</div>
-  <h2>The 3-layer cascade.</h2>
+  <h2>The 4-layer cascade.</h2>
   <table style="width:100%;max-width:1000px">
     <tr><th>Layer</th><th>Brain</th><th>Speed</th><th>Cost</th></tr>
+    <tr><td class="n green">L0</td><td><b>Sender prior</b> — whitelisted shortcodes · spoof-cap 50</td><td class="n">0ms</td><td class="green">Rs 0</td></tr>
     <tr><td class="n green">L1</td><td><b>hifazat-edge</b> — our fine-tune, Ollama on-device</td><td class="n">2.3s</td><td class="green">Rs 0</td></tr>
     <tr><td class="n blue">L2</td><td><b>Qwen-Max</b> — Alibaba Model Studio</td><td class="n">~9s</td><td class="blue">quota-capped (≈ Rs 0.85)</td></tr>
     <tr><td class="n orange">L3</td><td><b>On-device rule engine</b></td><td class="n">0ms</td><td class="green">Rs 0</td></tr>
@@ -204,7 +205,7 @@
     <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0 L7 3 L0 6 Z" fill="#3B6BE0"/></marker></defs>
     <rect x="430" y="8" width="200" height="64" rx="14" fill="#141628" stroke="#1F2440" stroke-width="2"/>
     <text x="530" y="34" fill="#F1F5F9" font-size="15" font-weight="800" text-anchor="middle">1 · USER INPUT</text>
-    <text x="530" y="56" fill="#94A3B8" font-size="11.5" font-weight="600" text-anchor="middle">SMS · call · screenshot</text>
+    <text x="530" y="56" fill="#94A3B8" font-size="11.5" font-weight="600" text-anchor="middle">SMS · WhatsApp · screenshot</text>
     <rect x="730" y="83" width="200" height="64" rx="14" fill="#141628" stroke="#1F2440" stroke-width="2"/>
     <text x="830" y="109" fill="#F1F5F9" font-size="15" font-weight="800" text-anchor="middle">2 · SCAN</text>
     <text x="830" y="131" fill="#94A3B8" font-size="11.5" font-weight="600" text-anchor="middle">normalise + language</text>
@@ -242,23 +243,19 @@
   <div class="qoder" style="border-color:var(--green)">The Qwen family powers both the builder and the product.</div>
 </section>
 
-<!-- 8B · WHAT'S NEW — speaker note: this is what you will see live, not a roadmap item. -->
+<!-- 8B · WHAT'S NEW -->
 <section class="slide">
   <div class="kicker">What's New · This Build</div>
   <h2>The house now warns itself.</h2>
-  <!-- Foot cut: its "two canned surfaces are badged DEMO · SIMULATED" claim is
-       stated in full on slide 13 (Honesty), bullets 8-9. Repeating it here pushed
-       this slide past a 768px viewport at 1024 width. Overflow -> cut content.
-       Card copy trimmed ~20 words for the same reason; no fact was dropped. -->
   <div class="row">
     <div class="card"><h3 class="green">Awaz + three real actions</h3><p class="li"><b>expo-speech</b> reads the verdict in <b>ur-PK</b>, falling back to Roman Urdu when no Urdu voice exists — and if the phone has no TTS engine it says so instead of faking a speaking state. Plus <b>Sender Block</b>, a pre-filled <b>NCCIA</b> complaint, and the native <b>share sheet</b>.</p></div>
-    <div class="card"><h3 class="blue">Family alert, now named</h3><p class="li"><b>PRIMARY:</b> a zero-backend <b>sms: / wa.me</b> deep link opens the native app <b>pre-filled and addressed</b> — <i>"HIFAZAT ALERT: Ammi ko yeh message mila hai — SCAM … rokein."</i>, with <b>03XX… normalised to 923XX…</b>. <b>SECONDARY:</b> backend-relayed Expo push, live only when that member registered a real token.</p></div>
+    <div class="card"><h3 class="blue">Family alert, now named</h3><p class="li"><b>PRIMARY:</b> a zero-backend <b>sms: / wa.me</b> deep link opens the native app <b>pre-filled and addressed</b> — <i>"HIFAZAT ALERT: Ahmed ko yeh message mila hai — SCAM … rokein."</i>, with <b>03XX… normalised to 923XX…</b>. <b>SECONDARY:</b> backend-relayed Expo push, live only when that member registered a real token.</p></div>
     <div class="card"><h3 class="green">Scoped chat, now in Urdu script</h3><p class="li"><b>Pre-verified facts only</b> — no open-ended LLM call from chat, <b>no API key in the client</b>. The KB was Latin-keyed, so every اردو question fell through to <i>"I don't know"</i>; <b>22 synonym rows</b> now map them onto existing keys. <b>14/14 verified.</b></p></div>
     <div class="card"><h3 class="blue">Profile, analytics, honest surfaces</h3><p class="li">Notification prefs, scan-history auto-delete and <b>JSON export</b> of your own data. Charts are driven only by <b>actual stored scans</b> — no seeded mocks, honest empty states. Anything standing in for production is badged <b>DEMO · SIMULATED</b> beside the numbers it qualifies.</p></div>
   </div>
 </section>
 
-<!-- 9 · DEMO READINESS — speaker note: "We audited ourselves harder than you will." -->
+<!-- 9 · DEMO READINESS -->
 <section class="slide">
   <div class="kicker">Demo Readiness</div>
   <h2>Not a mock-up. A verified system.</h2>
@@ -273,8 +270,8 @@
     <div><span>✓</span>Push relay round-trip hits exp.host</div>
   </div>
   <div style="margin-top:16px;background:var(--srf);border:1px solid var(--line);border-radius:12px;padding:12px 18px;font-family:Consolas,ui-monospace,monospace;font-size:12.5px;line-height:1.7;color:var(--mut);max-width:1000px;white-space:pre">PASS | real Ollama hifazat-edge | model_used=FT_MODEL verdict=scam score=99 conf=99
-PASS | gate: conf 50 escalates to L2 | model_used=QWEN_MAX verdict=scam score=95 conf=98
-PASS | L1 down: falls to L2 | model_used=QWEN_MAX verdict=scam score=95 conf=98
+PASS | gate: conf 50 escalates to L2 | model_used=QWEN_MAX verdict=scam score=90 conf=95
+PASS | L1 down: falls to L2 | model_used=QWEN_MAX verdict=scam score=90 conf=95
 PASS | blackout: L3 RULES floor | model_used=RULES verdict=scam score=96 conf=88</div>
   <div class="foot">Live path: paste the 25,000-rupee OTP scam → SCAM, confidence 99, red flags lit →
     one-tap NCCIA Shikayat. Then pull the network cable and run it again.</div>
