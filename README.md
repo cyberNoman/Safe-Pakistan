@@ -4,9 +4,12 @@
 
 ## Pakistan's first offline-first, family-aware AI scam shield
 
-Paste any SMS, WhatsApp message, screenshot or live call and get a clear
+Paste any SMS or WhatsApp message, or upload a screenshot, and get a clear
 verdict — **SCAM · SUSPICIOUS · SAFE** — in 3 seconds, in English, Roman Urdu
 and اردو (Nastaliq), plus **one tap to warn your family**.
+Live-call analysis is Phase 2: call-ID screening needs only standard
+permissions (v2a); live audio needs the default phone/assistant role or
+operator-side access (v2b — telco partnership).
 
 *Apne Ghar Ki Hifazat — Protect Your Home*
 
@@ -38,7 +41,7 @@ and اردو (Nastaliq), plus **one tap to warn your family**.
 
 | | |
 |---|---|
-| **What it is** | Offline-first scam detector for Pakistan — SMS, calls, screenshots |
+| **What it is** | Offline-first scam detector for Pakistan — SMS, WhatsApp, screenshots (live calls: Phase 2) |
 | **Verdict speed** | 3 s client race · L1 answers in 2.3 s · L3 floor in 0 ms |
 | **Cost per scan** | **Rs 0** on-device · ≈ Rs 0.85 cloud (quota-shielded) |
 | **Hold-out accuracy** | **74.8–77.4%** (mean 76.3%) vs 46.5% regex baseline — 155 unseen messages |
@@ -91,7 +94,7 @@ reads Urdu, Roman Urdu and English, and alerts the family before the money moves
 
 ```mermaid
 flowchart TD
-  A["USER INPUT<br/>SMS · WhatsApp · screenshot · live call"] --> L0{"L0 SENDER PRIOR<br/>verified shortcode + OTP template?"}
+  A["USER INPUT<br/>SMS · WhatsApp · screenshot ·"] --> L0{"L0 SENDER PRIOR<br/>verified shortcode + OTP template?"}
   L0 -- "match · 0ms · Rs 0" --> V0["SAFE<br/>L0_VERIFIED"]
   L0 -- "spoofed → confidence capped at 50" --> L1
   L0 -- "unknown sender" --> L1{"L1 hifazat-edge<br/>local Qwen2.5-1.5B · 2.3s · Rs 0"}
@@ -362,7 +365,7 @@ Both phones on the **same hotspot**, laptop backend running on `:3000`.
 | 4 | — | Scan → the **"25,000 OTP"** preset → verdict **SCAM, 96 red** |
 | 5 | — | **Awaz** → the verdict is read aloud (Urdu, or Roman Urdu on `en-US` if the device has no Urdu voice). The button pulses and the band flips to **AWAZ CHAL RAHI HAI** |
 | 6 | — | **NCCIA Shikayat** → the mail app opens with a complete legal complaint · **Report Share Karein** → native share sheet · **Sender Block** → number copied + SMS app opened |
-| 7 | — | **Family Ko Batain** → pick the member → **PRIMARY "Send via SMS / WhatsApp"** → native SMS opens **pre-filled and addressed**: *"HIFAZAT ALERT: Ammi ko yeh message mila hai — SCAM (Risk 96/100) … Ammi ko OTP/paisa bhejne se rokein."* |
+| 7 | — | **Family Ko Batain** → pick the member → **PRIMARY "Send via SMS / WhatsApp"** → native SMS opens **pre-filled and addressed**: *"HIFAZAT ALERT: Ahmed ko yeh message mila hai — SCAM (Risk 96/100) … Ahmed ko OTP/paisa bhejne se rokein. Unhein foran call karein."* |
 | 8 | — | **SECONDARY "Push Alert"** (live only with a real token) → **"Push sent · real"** |
 | 9 | Foreground → **in-app banner** with verdict + risk. Backgrounded → **system notification** | On `sent: 0` → toast *"Push fail hua — SMS use karein"*, SMS stays highlighted |
 
