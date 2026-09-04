@@ -46,7 +46,7 @@ operator-side access (v2b — telco partnership).
 | **Cost per scan** | **Rs 0** on-device · ≈ Rs 0.85 cloud (quota-shielded) |
 | **Hold-out accuracy** | **74.8–77.4%** (mean 76.3%) vs 46.5% regex baseline — 155 unseen messages |
 | **Resilience** | 4/4 failure-path harness PASS — every outage still returns a verdict |
-| **Family-aware** | Real-time alert to guardians, naming the recipient: SMS/WhatsApp deep link **or** Expo push |
+| **Family-aware** | Real-time alert to guardians, naming the person at risk: SMS/WhatsApp deep link **or** Expo push |
 | **Languages** | English · Roman Urdu · اردو (Nastaliq) — chat accepts Urdu script; voice read-out in `ur-PK` with an `en-US` fallback |
 | **Report path** | One tap to a pre-filled **NCCIA** complaint (`helpdesk@nccia.gov.pk`) or the native share sheet |
 | **Our model** | [hifazat-edge](https://huggingface.co/Noman33/hifazat-edge) — Qwen2.5-1.5B + LoRA, on Hugging Face |
@@ -94,7 +94,7 @@ reads Urdu, Roman Urdu and English, and alerts the family before the money moves
 
 ```mermaid
 flowchart TD
-  A["USER INPUT<br/>SMS · WhatsApp · screenshot ·"] --> L0{"L0 SENDER PRIOR<br/>verified shortcode + OTP template?"}
+  A["USER INPUT<br/>SMS · WhatsApp · screenshot"] --> L0{"L0 SENDER PRIOR<br/>verified shortcode + OTP template?"}
   L0 -- "match · 0ms · Rs 0" --> V0["SAFE<br/>L0_VERIFIED"]
   L0 -- "spoofed → confidence capped at 50" --> L1
   L0 -- "unknown sender" --> L1{"L1 hifazat-edge<br/>local Qwen2.5-1.5B · 2.3s · Rs 0"}
@@ -155,7 +155,7 @@ network call, and nothing claims a delivery it did not make.
 | **Report Share Karein** | The same report as clean plain text through the native `Share.share()` sheet — WhatsApp, SMS or any installed target. |
 | **Share on Home and Scan** | Home shares a plain-text summary of the **real** scan store; Scan shares the message you pasted as a warning. Zero scans reads "No scans yet" rather than inventing figures. |
 | **اردو chat coverage** | The Guardian KB was Latin-keyed only, so every Urdu-script question fell through to "I don't know" — in a 3-language app aimed at Urdu readers. A 22-row synonym table now maps Urdu-script terms onto existing KB keys, plus Eastern-Arabic digit normalisation for the shortcode check. **Answers are unchanged; only the question side widened.** Verified: 14/14 Urdu queries hit the correct entry and off-topic Urdu still falls back honestly. |
-| **Named family alerts** | The SMS/WhatsApp payload is victim-centric and names the recipient — *"HIFAZAT ALERT: Ammi ko yeh message mila hai — SCAM (Risk 96/100) … Ammi ko OTP/paisa bhejne se rokein. Unhein foran call karein."* — so a forwarded warning tells the family who to protect and what to do. |
+| **Named family alerts** | The SMS/WhatsApp payload names the **person at risk — the scanner who received the scam SMS** — using the Profile name: *"HIFAZAT ALERT: Ahmed ko yeh message mila hai — SCAM (Risk 96/100) … Ahmed ko OTP/paisa bhejne se rokein. Unhein foran call karein."* No name set → *"Ghar wale ko yeh message mila hai"*. A forwarded warning tells the family exactly who to call. |
 | **Real-time Family Alert** | Per member, two paths: **PRIMARY** "Send via SMS / WhatsApp" — a zero-backend deep link (`sms:` / `wa.me`) that opens the native app **pre-filled**, with `03XX…` normalized to `923XX…`; **SECONDARY** "Push Alert" — enabled only when that member registered a real Expo push token, relayed by the backend to `exp.host`. On `sent: 0` it toasts *"Push fail hua — SMS use karein"* and keeps SMS highlighted. |
 | **Push-ready device enrolment** | On the guardian device: *"Is device ko push-ready banayein"* → notification permission → `getExpoPushTokenAsync()` → `POST /family/register`. If the token call throws (Expo Go, no dev build), the app says so plainly — *"Push is build mein available nahi — SMS alert use karein"* — and marks the member **SMS only**. Push is never faked. |
 | **Receiving side** | Foreground → in-app banner with verdict + risk, auto-dismissing. Background → real system notification via Expo/FCM. |
@@ -260,7 +260,7 @@ plainly, in the README, the model card and the app itself:
 - **The hero "PROTECTED 98" ring is a fixed design value, not a measurement.**
   The saved-amount figure is now computed, not canned: VerdictScreen reads the
   amount out of the scanned message (*"Rs 5,000"*, *"25,000"*, *"10k"*, Urdu
-  digits) and shows *"Rs <amt> bachaya"*; when no amount is present it falls back
+  digits) and shows e.g. *"Rs 25,000 bachaya"*; when no amount is present it falls back
   to a per-scam-type estimate badged **"ESTIMATED"**. The Analytics **TOTAL
   BACHAYA** is the sum of the per-scan amounts actually stored (real where found,
   else the per-type estimate for legacy rows). The scan counters, verdicts,
